@@ -3,7 +3,7 @@ defmodule Spine.Bus.EphemeralTest do
   alias Spine.Bus.Ephemeral
 
   setup do
-    {:ok, pid} = Ephemeral.start_link([])
+    {:ok, _pid} = Ephemeral.start_link([])
 
     :ok
   end

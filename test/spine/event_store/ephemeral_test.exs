@@ -3,7 +3,7 @@ defmodule Spine.EventStore.EphemeralTest do
   alias Spine.EventStore.Ephemeral
 
   setup do
-    {:ok, pid} = Spine.EventStore.Ephemeral.start_link([])
+    {:ok, _pid} = Spine.EventStore.Ephemeral.start_link([])
 
     :ok
   end
@@ -44,6 +44,15 @@ defmodule Spine.EventStore.EphemeralTest do
     :ok = Ephemeral.commit([:a], {"counter-1", 1})
 
     assert [{"counter-1", 5}, {"counter-1", :a}] == Ephemeral.all_events()
+  end
+
+  test "can retrieve individual events" do
+    :ok = Ephemeral.commit([:a, :b, :c, :d], {"counter-1", 0})
+
+    assert {"counter-1", :a} == Ephemeral.event(0)
+    assert {"counter-1", :b} == Ephemeral.event(1)
+    assert {"counter-1", :c} == Ephemeral.event(2)
+    assert {"counter-1", :d} == Ephemeral.event(3)
   end
 
   test "retrieves events" do

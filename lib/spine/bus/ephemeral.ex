@@ -1,6 +1,8 @@
 defmodule Spine.Bus.Ephemeral do
   use GenServer
 
+  @behaviour Spine.Bus
+
   def init(opts), do: {:ok, opts}
 
   def start_link(_opts) do
@@ -8,18 +10,22 @@ defmodule Spine.Bus.Ephemeral do
     GenServer.start_link(__MODULE__, init_state, name: __MODULE__)
   end
 
+  @impl Spine.Bus
   def subscribe(channel, pid \\ self()) do
     GenServer.cast(__MODULE__, {:subscribe, channel, pid})
   end
 
+  @impl Spine.Bus
   def subscriptions do
     GenServer.call(__MODULE__, :subscriptions)
   end
 
+  @impl Spine.Bus
   def completed(channel, cursor) do
     GenServer.cast(__MODULE__, {:completed, channel, cursor})
   end
 
+  @impl Spine.Bus
   def cursor(channel) do
     GenServer.call(__MODULE__, {:cursor, channel})
   end
