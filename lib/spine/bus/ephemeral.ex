@@ -1,4 +1,8 @@
 defmodule Spine.Bus.Ephemeral do
+  @moduledoc """
+  A mock database that keeps track of subscriptions,
+  and the event_number they have processed.
+  """
   use GenServer
 
   @behaviour Spine.Bus
@@ -7,12 +11,13 @@ defmodule Spine.Bus.Ephemeral do
 
   def start_link(_opts) do
     init_state = %{}
+
     GenServer.start_link(__MODULE__, init_state, name: __MODULE__)
   end
 
   @impl Spine.Bus
-  def subscribe(channel, pid \\ self()) do
-    GenServer.cast(__MODULE__, {:subscribe, channel, pid})
+  def subscribe(channel, starting_event_number \\ 0) do
+    GenServer.cast(__MODULE__, {:subscribe, channel, starting_event_number})
   end
 
   @impl Spine.Bus
@@ -30,16 +35,16 @@ defmodule Spine.Bus.Ephemeral do
     GenServer.call(__MODULE__, {:cursor, channel})
   end
 
-  def handle_cast({:subscribe, channel, pid}, subscriptions) do
-    subscriptions = Map.put_new(subscriptions, channel, {pid, 0})
+  def handle_cast({:subscribe, channel, starting_event_number}, subscriptions) do
+    subscriptions = Map.put_new(subscriptions, channel, starting_event_number)
 
     {:noreply, subscriptions}
   end
 
   def handle_cast({:completed, channel, cursor}, subscriptions) do
     case Map.get(subscriptions, channel) do
-      {pid, current_cursor} when current_cursor == cursor ->
-        subscriptions = Map.put(subscriptions, channel, {pid, cursor + 1})
+      current_cursor when current_cursor == cursor ->
+        subscriptions = Map.put(subscriptions, channel, cursor + 1)
         {:noreply, subscriptions}
 
       _other ->
@@ -52,7 +57,6 @@ defmodule Spine.Bus.Ephemeral do
   end
 
   def handle_call({:cursor, channel}, _from, subscriptions) do
-    {_pid, cursor} = Map.get(subscriptions, channel)
-    {:reply, cursor, subscriptions}
+    {:reply, Map.get(subscriptions, channel), subscriptions}
   end
 end

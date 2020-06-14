@@ -16,7 +16,7 @@ defmodule Spine.Bus.EphemeralTest do
     Ephemeral.subscribe("channel-one")
 
     assert %{
-             "channel-one" => {self(), 0}
+             "channel-one" => 0
            } == Ephemeral.subscriptions()
   end
 
@@ -33,7 +33,7 @@ defmodule Spine.Bus.EphemeralTest do
       assert :ok == Ephemeral.completed("channel-one", 0)
 
       assert %{
-               "channel-one" => {self(), 1}
+               "channel-one" => 1
              } == Ephemeral.subscriptions()
     end
 
@@ -43,7 +43,7 @@ defmodule Spine.Bus.EphemeralTest do
       assert :ok == Ephemeral.completed("channel-one", 1)
 
       assert %{
-               "channel-one" => {self(), 0}
+               "channel-one" => 0
              } == Ephemeral.subscriptions()
     end
   end
