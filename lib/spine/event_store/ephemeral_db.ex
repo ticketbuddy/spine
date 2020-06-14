@@ -1,4 +1,4 @@
-defmodule Spine.EventStore.Ephemeral do
+defmodule Spine.EventStore.EphemeralDb do
   use GenServer
   @behaviour Spine.EventStore
 
