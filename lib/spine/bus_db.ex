@@ -1,4 +1,4 @@
-defmodule Spine.Bus do
+defmodule Spine.BusDb do
   @type cursor :: Integer.t()
   @type channel :: String.t()
 
