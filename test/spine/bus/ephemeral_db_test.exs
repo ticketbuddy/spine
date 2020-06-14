@@ -1,6 +1,6 @@
 defmodule Spine.Bus.EphemeralDbTest do
   use ExUnit.Case
-  alias Spine.Bus.EphemeralDb
+  alias Spine.BusDb.EphemeralDb
 
   setup do
     {:ok, _pid} = EphemeralDb.start_link([])

@@ -1,26 +1,29 @@
 defmodule Spine.Listener do
   use GenServer
+  import Logger
 
-  # def handle_cast(:new_event, state) do
-  #   {cursor, pending_events} = state
-  #   {:noreply, {cursor, pending_events + 1}}
-  # end
-  #
-  # def handle_cast(:process, state) do
-  #   {cursor, pending_events} = state
-  #
-  #   # TODO fetch event from event_store, then do_work...
-  #   case do_work(cursor) do
-  #     :ok -> {cursor + 1, pending_events - 1}
-  #     _error ->
-  #     # retry logic...
-  #     {:noreply, state}
-  #   end
-  # end
-  #
-  # defp do_work(event) do
-  #   IO.inspect(event, label: "event")
-  #
-  #   :ok
-  # end
+  def init(state) do
+    {_, config} = state
+    :ok = Spine.BusDb.EphemeralDb.subscribe(config.channel)
+
+    {:ok, state}
+  end
+
+  def start_link(config) do
+    init_state = {%{}, config}
+    GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
+  end
+
+  def handle_cast({:process, event_number}, state) do
+    {%{}, config} = state
+
+    {aggregate_id, event} = config.event_store.event(event_number)
+
+    case config.callback.handle_event(event) do
+      :ok -> config.bus_db.completed(config.channel, event_number)
+      other -> Logger.error("#{config.callback} returned error:\n" <> inspect(other))
+    end
+
+    {:noreply, state}
+  end
 end

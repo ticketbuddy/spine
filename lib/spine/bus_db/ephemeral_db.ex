@@ -1,4 +1,4 @@
-defmodule Spine.Bus.EphemeralDb do
+defmodule Spine.BusDb.EphemeralDb do
   @moduledoc """
   A mock database that keeps track of subscriptions,
   and the event_number they have processed.

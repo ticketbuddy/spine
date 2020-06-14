@@ -2,7 +2,7 @@ defmodule SpineTest do
   use ExUnit.Case
 
   setup do
-    {:ok, _pid} = Spine.Bus.EphemeralDb.start_link([])
+    {:ok, _pid} = Spine.BusDb.EphemeralDb.start_link([])
 
     {:ok, _pid} = Spine.EventStore.EphemeralDb.start_link([])
 
@@ -10,7 +10,7 @@ defmodule SpineTest do
   end
 
   defmodule MyApp do
-    use Spine, event_store: Spine.EventStore.EphemeralDb, bus: Spine.Bus.EphemeralDb
+    use Spine, event_store: Spine.EventStore.EphemeralDb, bus: Spine.BusDb.EphemeralDb
   end
 
   describe "Integration" do
