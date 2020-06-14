@@ -39,6 +39,13 @@ defmodule Spine.EventStore.EphemeralTest do
     end
   end
 
+  test "keeps order when new events are fetched" do
+    :ok = Ephemeral.commit([5], {"counter-1", 0})
+    :ok = Ephemeral.commit([:a], {"counter-1", 1})
+
+    assert [{"counter-1", 5}, {"counter-1", :a}] == Ephemeral.all_events()
+  end
+
   test "retrieves events" do
     cursor = {"counter-1", 0}
 

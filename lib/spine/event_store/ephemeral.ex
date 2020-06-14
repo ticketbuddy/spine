@@ -27,7 +27,7 @@ defmodule Spine.EventStore.Ephemeral do
     new_events = Enum.map(new_events, &{aggregate_id, &1})
 
     case Enum.count(events_on_aggregate) == key do
-      true -> {:reply, :ok, new_events ++ events}
+      true -> {:reply, :ok, events ++ new_events}
       false -> {:reply, :incorrect_key, events}
     end
   end
