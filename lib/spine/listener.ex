@@ -4,7 +4,7 @@ defmodule Spine.Listener do
 
   def init(state) do
     {_, config} = state
-    {:ok, cursor} = Spine.BusDb.EphemeralDb.subscribe(config.channel)
+    {:ok, cursor} = config.spine.subscribe(config.channel)
 
     schedule_work()
 
@@ -34,6 +34,6 @@ defmodule Spine.Listener do
   end
 
   def schedule_work do
-    Process.send_after(self(), :process, 500)
+    Process.send_after(self(), :process, 50)
   end
 end
