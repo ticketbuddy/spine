@@ -19,11 +19,11 @@ defmodule Spine.Listener do
   def handle_info(:process, state) do
     {cursor, config} = state
 
-    {_aggregate_id, event} = config.event_store.event(cursor)
+    {_aggregate_id, event} = config.spine.event(cursor)
 
     case config.callback.handle_event(event) do
       :ok ->
-        config.bus_db.completed(config.channel, cursor)
+        config.spine.completed(config.channel, cursor)
         schedule_work()
         {:noreply, {cursor + 1, config}}
 

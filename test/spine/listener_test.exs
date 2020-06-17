@@ -1,17 +1,8 @@
 defmodule Spine.ListenerTest do
   use ExUnit.Case
 
-  setup do
-    {:ok, _event_store} = Spine.EventStore.EphemeralDb.start_link([])
-    {:ok, _bus_db} = Spine.BusDb.EphemeralDb.start_link([])
-
-    %{
-      config: %{
-        bus_db: Spine.BusDb.EphemeralDb,
-        event_store: Spine.EventStore.EphemeralDb,
-        channel: "listener-one"
-      }
-    }
+  defmodule AppsSpine do
+    use Spine, event_store: Spine.EventStore.EphemeralDb, bus: Spine.BusDb.EphemeralDb
   end
 
   defmodule Callback do
@@ -26,6 +17,18 @@ defmodule Spine.ListenerTest do
 
       :error
     end
+  end
+
+  setup do
+    {:ok, _event_store} = Spine.EventStore.EphemeralDb.start_link([])
+    {:ok, _bus_db} = Spine.BusDb.EphemeralDb.start_link([])
+
+    %{
+      config: %{
+        channel: "listener-one",
+        spine: AppsSpine
+      }
+    }
   end
 
   describe "processing an event" do
