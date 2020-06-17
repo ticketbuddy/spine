@@ -38,12 +38,13 @@ defmodule Spine.ListenerTest do
       event = {:an_event, self()}
       Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 0})
 
-      event_number = 0
-      GenServer.cast(listener, {:process, event_number})
+      send(listener, :process)
 
       assert_receive(:handled_an_event)
 
       assert %{"listener-one" => 1} == Spine.BusDb.EphemeralDb.subscriptions()
+
+      assert {1, config} == :sys.get_state(listener)
     end
 
     test "when event is not handled successfully by callback", %{config: config} do
@@ -53,12 +54,13 @@ defmodule Spine.ListenerTest do
       event = {:event_for_failed_callback, self()}
       Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 0})
 
-      event_number = 0
-      GenServer.cast(listener, {:process, event_number})
+      send(listener, :process)
 
       assert_receive(:event_for_failed_callback)
 
       assert %{"listener-one" => 0} == Spine.BusDb.EphemeralDb.subscriptions()
+
+      assert {0, config} == :sys.get_state(listener)
     end
   end
 end

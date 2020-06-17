@@ -18,7 +18,7 @@ defmodule Spine.BusDb.EphemeralDb do
 
   @impl Spine.BusDb
   def subscribe(channel, starting_event_number \\ 0) do
-    GenServer.cast(__MODULE__, {:subscribe, channel, starting_event_number})
+    GenServer.call(__MODULE__, {:subscribe, channel, starting_event_number})
   end
 
   @impl Spine.BusDb
@@ -37,10 +37,10 @@ defmodule Spine.BusDb.EphemeralDb do
   end
 
   @impl true
-  def handle_cast({:subscribe, channel, starting_event_number}, subscriptions) do
+  def handle_call({:subscribe, channel, starting_event_number}, _from, subscriptions) do
     subscriptions = Map.put_new(subscriptions, channel, starting_event_number)
 
-    {:noreply, subscriptions}
+    {:reply, {:ok, 0}, subscriptions}
   end
 
   @impl true

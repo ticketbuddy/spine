@@ -4,26 +4,36 @@ defmodule Spine.Listener do
 
   def init(state) do
     {_, config} = state
-    :ok = Spine.BusDb.EphemeralDb.subscribe(config.channel)
+    {:ok, cursor} = Spine.BusDb.EphemeralDb.subscribe(config.channel)
 
-    {:ok, state}
+    schedule_work()
+
+    {:ok, {cursor, config}}
   end
 
   def start_link(config) do
-    init_state = {%{}, config}
+    init_state = {0, config}
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
-  def handle_cast({:process, event_number}, state) do
-    {%{}, config} = state
+  def handle_info(:process, state) do
+    {cursor, config} = state
 
-    {aggregate_id, event} = config.event_store.event(event_number)
+    {_aggregate_id, event} = config.event_store.event(cursor)
 
     case config.callback.handle_event(event) do
-      :ok -> config.bus_db.completed(config.channel, event_number)
-      other -> Logger.error("#{config.callback} returned error:\n" <> inspect(other))
-    end
+      :ok ->
+        config.bus_db.completed(config.channel, cursor)
+        schedule_work()
+        {:noreply, {cursor + 1, config}}
 
-    {:noreply, state}
+      other ->
+        Logger.error("#{config.callback} returned error:\n" <> inspect(other))
+        {:noreply, state}
+    end
+  end
+
+  def schedule_work do
+    Process.send_after(self(), :process, 500)
   end
 end

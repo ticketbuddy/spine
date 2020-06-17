@@ -9,7 +9,7 @@ defmodule Spine.Bus.EphemeralDbTest do
   end
 
   test "subscribes listener to a channel" do
-    assert :ok = EphemeralDb.subscribe("channel-one")
+    assert {:ok, 0} = EphemeralDb.subscribe("channel-one")
   end
 
   test "retrieves subscriptions" do
