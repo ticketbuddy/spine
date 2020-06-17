@@ -6,7 +6,7 @@ defmodule Spine.Listener do
     {_, config} = state
     {:ok, cursor} = config.spine.subscribe(config.channel)
 
-    schedule_work()
+    send(self(), :process)
 
     {:ok, {cursor, config}}
   end
@@ -19,21 +19,30 @@ defmodule Spine.Listener do
   def handle_info(:process, state) do
     {cursor, config} = state
 
-    {_aggregate_id, event} = config.spine.event(cursor)
+    cursor =
+      case config.spine.event(cursor) do
+        nil -> cursor
+        {_agg_id, event} -> handle_event(event, cursor, config)
+      end
 
-    case config.callback.handle_event(event) do
-      :ok ->
-        config.spine.completed(config.channel, cursor)
-        schedule_work()
-        {:noreply, {cursor + 1, config}}
-
-      other ->
-        Logger.error("#{config.callback} returned error:\n" <> inspect(other))
-        {:noreply, state}
-    end
+    schedule_work()
+    {:noreply, {cursor, config}}
   end
 
   def schedule_work do
     Process.send_after(self(), :process, 50)
+  end
+
+  defp handle_event(event, cursor, config) do
+    case config.callback.handle_event(event) do
+      :ok ->
+        config.spine.completed(config.channel, cursor)
+        cursor + 1
+
+      other ->
+        Logger.error("#{config.callback} returned error:\n" <> inspect(other))
+
+        cursor
+    end
   end
 end
