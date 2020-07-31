@@ -30,4 +30,47 @@ defmodule Spine.EventStore.PostgresTest do
       assert :error == PostgresTestDb.commit(events, cursor_two)
     end
   end
+
+  describe "fetches events" do
+    setup do
+      PostgresTestDb.commit(%TestApp.Incremented{count: 5}, {"aggregate-12345", 0})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 10}, {"aggregate-12345", 1})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 15}, {"aggregate-12345", 2})
+
+      PostgresTestDb.commit(%TestApp.Incremented{count: 20}, {"aggregate-6789", 0})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 25}, {"aggregate-6789", 1})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 30}, {"aggregate-6789", 2})
+
+      :ok
+    end
+
+    test "fetches all events" do
+      assert [
+               # seeded event
+               %TestApp.Incremented{count: 1},
+               %TestApp.Incremented{count: 5},
+               %TestApp.Incremented{count: 10},
+               %TestApp.Incremented{count: 15},
+               %TestApp.Incremented{count: 20},
+               %TestApp.Incremented{count: 25},
+               %TestApp.Incremented{count: 30}
+             ] == PostgresTestDb.all_events()
+    end
+
+    test "fetches events by aggregate_id" do
+      assert [
+               %TestApp.Incremented{count: 20},
+               %TestApp.Incremented{count: 25},
+               %TestApp.Incremented{count: 30}
+             ] == PostgresTestDb.aggregate_events("aggregate-6789")
+    end
+
+    test "fetches a single event by event_number" do
+      assert %TestApp.Incremented{count: 1} == PostgresTestDb.event(1)
+    end
+
+    test "when individual event is not found" do
+      assert {:warn, :event_not_found} == PostgresTestDb.event(-50)
+    end
+  end
 end

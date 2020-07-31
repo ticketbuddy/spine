@@ -1,5 +1,6 @@
 defmodule Spine.EventStore.Postgres do
-  alias __MODULE__.{Commit}
+  alias __MODULE__.{Commit, Schema}
+  alias Spine.EventStore.Serializer
 
   def commit(repo, events, cursor) do
     Commit.commit(List.wrap(events), cursor)
@@ -15,15 +16,32 @@ defmodule Spine.EventStore.Postgres do
   end
 
   def all_events(repo) do
-    []
+    repo.all(Schema.Event)
+    |> format_events()
   end
 
-  def aggregate_events(repo, aggregate_events) do
-    []
+  def aggregate_events(repo, aggregate_id) do
+    import Ecto.Query
+
+    from(e in Schema.Event,
+      where:
+        e.aggregate_id ==
+          ^aggregate_id
+    )
+    |> repo.all()
+    |> format_events()
   end
 
   def event(repo, event_number) do
-    :an_event
+    repo.get_by(Schema.Event, event_number: event_number)
+    |> case do
+      nil -> {:warn, :event_not_found}
+      event -> Serializer.deserialize(event.data)
+    end
+  end
+
+  defp format_events(events) do
+    Enum.map(events, &Serializer.deserialize(&1.data))
   end
 
   defmacro __using__(repo: repo) do
