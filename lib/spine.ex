@@ -9,6 +9,7 @@ defmodule Spine do
       @bus unquote(bus)
 
       defdelegate commit(events, cursor), to: @event_store
+      defdelegate seed(event, aggregate_id), to: @event_store
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
