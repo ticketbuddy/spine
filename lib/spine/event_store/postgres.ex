@@ -1,6 +1,13 @@
 defmodule Spine.EventStore.Postgres do
+  alias __MODULE__.{Commit}
+
   def commit(repo, events, cursor) do
-    :ok
+    Commit.commit(List.wrap(events), cursor)
+    |> repo.transaction()
+    |> case do
+      {:ok, _results} -> :ok
+      _other -> :error
+    end
   end
 
   def seed(repo, event, aggregate_id) do
