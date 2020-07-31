@@ -15,6 +15,11 @@ defmodule Spine.EventStore.EphemeralDb do
   end
 
   @impl Spine.EventStore
+  def seed(event, aggregate_id) do
+    GenServer.call(__MODULE__, {:seed, event, aggregate_id})
+  end
+
+  @impl Spine.EventStore
   def all_events do
     GenServer.call(__MODULE__, :all_events)
   end
@@ -39,6 +44,10 @@ defmodule Spine.EventStore.EphemeralDb do
       true -> {:reply, :ok, events ++ new_events}
       false -> {:reply, :incorrect_key, events}
     end
+  end
+
+  def handle_call({:seed, event, aggregate_id}, _from, events) do
+    {:reply, :ok, events ++ [{aggregate_id, event}]}
   end
 
   def handle_call(:all_events, _from, events) do
