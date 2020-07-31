@@ -39,6 +39,18 @@ defmodule Spine.EventStore.EphemeralDbTest do
     end
   end
 
+  describe "seeds an event" do
+    test "adds an event" do
+      aggregate_id = "agg-12345"
+
+      assert :ok = EphemeralDb.seed(:an_event, aggregate_id)
+      assert :ok = EphemeralDb.seed(:a_second_event, aggregate_id)
+
+      assert [{"agg-12345", :an_event}, {"agg-12345", :a_second_event}] ==
+               EphemeralDb.all_events()
+    end
+  end
+
   test "keeps order when new events are fetched" do
     :ok = EphemeralDb.commit([5], {"counter-1", 0})
     :ok = EphemeralDb.commit([:a], {"counter-1", 1})
