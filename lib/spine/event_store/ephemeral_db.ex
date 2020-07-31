@@ -58,7 +58,7 @@ defmodule Spine.EventStore.EphemeralDb do
     {:reply, Enum.at(events, event_number), events}
   end
 
-  def handle_call({aggregate_events, aggregate_id}, _from, events) do
+  def handle_call({:aggregate_events, aggregate_id}, _from, events) do
     {:reply, events_for_aggregate(events, aggregate_id), events}
   end
 
