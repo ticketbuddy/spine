@@ -51,15 +51,24 @@ defmodule Spine.EventStore.EphemeralDb do
   end
 
   def handle_call(:all_events, _from, events) do
-    {:reply, events, events}
+    {:reply, format_events(events), events}
   end
 
   def handle_call({:event, event_number}, _from, events) do
-    {:reply, Enum.at(events, event_number), events}
+    case Enum.at(events, event_number) do
+      nil -> {:reply, nil, events}
+      event -> {:reply, event |> elem(1), events}
+    end
   end
 
   def handle_call({:aggregate_events, aggregate_id}, _from, events) do
-    {:reply, events_for_aggregate(events, aggregate_id), events}
+    agg_events = events_for_aggregate(events, aggregate_id)
+
+    {:reply, format_events(agg_events), events}
+  end
+
+  defp format_events(events) do
+    events |> Enum.map(&elem(&1, 1))
   end
 
   defp events_for_aggregate(events, aggregate_id) do

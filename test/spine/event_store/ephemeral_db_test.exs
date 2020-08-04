@@ -46,8 +46,7 @@ defmodule Spine.EventStore.EphemeralDbTest do
       assert :ok = EphemeralDb.seed(:an_event, aggregate_id)
       assert :ok = EphemeralDb.seed(:a_second_event, aggregate_id)
 
-      assert [{"agg-12345", :an_event}, {"agg-12345", :a_second_event}] ==
-               EphemeralDb.all_events()
+      assert [:an_event, :a_second_event] == EphemeralDb.all_events()
     end
   end
 
@@ -55,16 +54,16 @@ defmodule Spine.EventStore.EphemeralDbTest do
     :ok = EphemeralDb.commit([5], {"counter-1", 0})
     :ok = EphemeralDb.commit([:a], {"counter-1", 1})
 
-    assert [{"counter-1", 5}, {"counter-1", :a}] == EphemeralDb.all_events()
+    assert [5, :a] == EphemeralDb.all_events()
   end
 
   test "can retrieve individual events" do
     :ok = EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 0})
 
-    assert {"counter-1", :a} == EphemeralDb.event(0)
-    assert {"counter-1", :b} == EphemeralDb.event(1)
-    assert {"counter-1", :c} == EphemeralDb.event(2)
-    assert {"counter-1", :d} == EphemeralDb.event(3)
+    assert :a == EphemeralDb.event(0)
+    assert :b == EphemeralDb.event(1)
+    assert :c == EphemeralDb.event(2)
+    assert :d == EphemeralDb.event(3)
   end
 
   test "retrieves events" do
@@ -72,15 +71,14 @@ defmodule Spine.EventStore.EphemeralDbTest do
 
     EphemeralDb.commit([:a, :b, :c, :d], cursor)
 
-    assert [{"counter-1", :a}, {"counter-1", :b}, {"counter-1", :c}, {"counter-1", :d}] ==
-             EphemeralDb.all_events()
+    assert [:a, :b, :c, :d] == EphemeralDb.all_events()
   end
 
   test "retrieves events for given aggregate" do
     EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 0})
     EphemeralDb.commit([9, 7, 5, 3], {"counter-2", 0})
 
-    assert [{"counter-1", :a}, {"counter-1", :b}, {"counter-1", :c}, {"counter-1", :d}] ==
+    assert [:a, :b, :c, :d] ==
              EphemeralDb.aggregate_events("counter-1")
   end
 end

@@ -22,7 +22,7 @@ defmodule Spine.Listener do
     cursor =
       case config.spine.event(cursor) do
         nil -> cursor
-        {_agg_id, event} -> handle_event(event, cursor, config)
+        event -> handle_event(event, cursor, config)
       end
 
     schedule_work()

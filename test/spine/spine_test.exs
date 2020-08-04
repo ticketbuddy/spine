@@ -41,13 +41,13 @@ defmodule SpineTest do
 
       listener_cursor = MyApp.cursor(listener)
 
-      assert {"counter-1", 5} == MyApp.event(listener_cursor)
+      assert 5 == MyApp.event(listener_cursor)
 
       MyApp.completed(listener, listener_cursor)
 
       listener_cursor = MyApp.cursor(listener)
 
-      assert {"counter-1", 21} == MyApp.event(listener_cursor)
+      assert 21 == MyApp.event(listener_cursor)
     end
 
     test "handling a wish that is allowed" do
