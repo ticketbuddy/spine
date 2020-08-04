@@ -7,21 +7,21 @@ defmodule Spine.BusDb.PostgresTest do
   end
 
   test "subscribes listener to a channel" do
-    assert {:ok, 0} = PostgresTestDb.subscribe("channel-one")
+    assert {:ok, 1} = PostgresTestDb.subscribe("channel-one")
   end
 
   test "retrieves subscriptions" do
     PostgresTestDb.subscribe("channel-one")
 
     assert %{
-             "channel-one" => 0
+             "channel-one" => 1
            } == PostgresTestDb.subscriptions()
   end
 
   test "get cursor for the channel" do
     PostgresTestDb.subscribe("channel-one")
 
-    assert 0 == PostgresTestDb.cursor("channel-one")
+    assert 1 == PostgresTestDb.cursor("channel-one")
   end
 
   describe "when an event is completed" do
@@ -38,10 +38,10 @@ defmodule Spine.BusDb.PostgresTest do
     test "does not increment cursor when :completed message received for incorrect cursor" do
       PostgresTestDb.subscribe("channel-one")
 
-      assert :ok == PostgresTestDb.completed("channel-one", 1)
+      assert :ok == PostgresTestDb.completed("channel-one", 2)
 
       assert %{
-               "channel-one" => 0
+               "channel-one" => 1
              } == PostgresTestDb.subscriptions()
     end
   end

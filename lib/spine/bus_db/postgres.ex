@@ -54,7 +54,7 @@ defmodule Spine.BusDb.Postgres do
       @repo unquote(repo)
       alias Spine.BusDb.Postgres
 
-      def subscribe(channel, starting_event_number \\ 0) do
+      def subscribe(channel, starting_event_number \\ 1) do
         Postgres.subscribe(@repo, channel, starting_event_number)
       end
 
