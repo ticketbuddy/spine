@@ -1,5 +1,6 @@
 defmodule Spine.BusDb.Postgres do
   alias Spine.BusDb.Postgres.Schema
+  require Logger
 
   def subscribe(repo, channel, starting_event_number) do
     Schema.Subscription.changeset(%{
@@ -23,11 +24,16 @@ defmodule Spine.BusDb.Postgres do
   def cursor(repo, channel) do
     repo.get(Schema.Subscription, channel)
     |> case do
-      %{cursor: cursor} -> cursor
+      %{cursor: cursor} ->
+        Logger.debug("[BUS] Fetched: #{channel} at #{cursor}")
+
+        cursor
     end
   end
 
   def completed(repo, channel, cursor) do
+    Logger.debug("[BUS] Completed #{channel} at #{cursor}")
+
     subscription = repo.get!(Schema.Subscription, channel)
 
     if subscription.cursor == cursor do

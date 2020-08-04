@@ -70,7 +70,7 @@ defmodule Spine.EventStore.PostgresTest do
     end
 
     test "when individual event is not found" do
-      assert {:warn, :event_not_found} == PostgresTestDb.event(-50)
+      assert nil == PostgresTestDb.event(-50)
     end
   end
 end

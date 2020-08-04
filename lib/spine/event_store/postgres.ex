@@ -1,6 +1,7 @@
 defmodule Spine.EventStore.Postgres do
   alias __MODULE__.{Commit, Schema}
   alias Spine.EventStore.Serializer
+  require Logger
 
   def commit(repo, events, cursor) do
     Commit.commit(List.wrap(events), cursor)
@@ -33,9 +34,11 @@ defmodule Spine.EventStore.Postgres do
   end
 
   def event(repo, event_number) do
+    Logger.debug("[STORE] Fetched: #{event_number}")
+
     repo.get_by(Schema.Event, event_number: event_number)
     |> case do
-      nil -> {:warn, :event_not_found}
+      nil -> nil
       event -> Serializer.deserialize(event.data)
     end
   end
