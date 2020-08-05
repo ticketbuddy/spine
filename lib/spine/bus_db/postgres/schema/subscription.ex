@@ -17,5 +17,6 @@ defmodule Spine.BusDb.Postgres.Schema.Subscription do
     %__MODULE__{}
     |> cast(params, [:channel, :starting_event_number, :cursor, :channel])
     |> validate_required([:channel, :starting_event_number, :cursor, :channel])
+    |> unique_constraint(:channel, name: :spine_subscription_pkey)
   end
 end

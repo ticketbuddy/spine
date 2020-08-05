@@ -11,6 +11,7 @@ defmodule Spine.BusDb.Postgres do
     |> repo.insert()
     |> case do
       {:ok, subscription} -> {:ok, subscription.cursor}
+      {:error, _changeset} -> {:ok, cursor(repo, channel)}
     end
   end
 
