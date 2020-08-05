@@ -6,7 +6,6 @@ defmodule Spine.EventStore do
   @type cursor :: {aggregate_id, key}
 
   @callback commit(events, cursor) :: :ok
-  @callback seed(event, aggregate_id) :: :ok
   @callback all_events() :: events
   @callback aggregate_events() :: aggregate_id
   @callback event(key) :: any()

@@ -12,10 +12,6 @@ defmodule Spine.EventStore.Postgres do
     end
   end
 
-  def seed(repo, event, aggregate_id) do
-    :ok
-  end
-
   def all_events(repo) do
     repo.all(Schema.Event)
     |> format_events()
@@ -56,11 +52,6 @@ defmodule Spine.EventStore.Postgres do
       @impl Spine.EventStore
       def commit(events, cursor) do
         Postgres.commit(@repo, events, cursor)
-      end
-
-      @impl Spine.EventStore
-      def seed(event, aggregate_id) do
-        Postgres.seed(@repo, event, aggregate_id)
       end
 
       @impl Spine.EventStore
