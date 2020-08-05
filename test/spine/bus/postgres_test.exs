@@ -10,6 +10,14 @@ defmodule Spine.BusDb.PostgresTest do
     assert {:ok, 1} = PostgresTestDb.subscribe("channel-one")
   end
 
+  test "returns cursor if subscription already created" do
+    {:ok, 1} = PostgresTestDb.subscribe("channel-one")
+
+    :ok = PostgresTestDb.completed("channel-one", 1)
+
+    assert {:ok, 2} = PostgresTestDb.subscribe("channel-one")
+  end
+
   test "retrieves subscriptions" do
     PostgresTestDb.subscribe("channel-one")
 
