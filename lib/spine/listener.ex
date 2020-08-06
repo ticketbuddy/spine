@@ -12,7 +12,7 @@ defmodule Spine.Listener do
   end
 
   def start_link(config) do
-    init_state = {0, config}
+    init_state = {1, config}
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
@@ -21,8 +21,14 @@ defmodule Spine.Listener do
 
     cursor =
       case config.spine.event(cursor) do
-        nil -> cursor
-        event -> handle_event(event, cursor, config)
+        nil ->
+          Logger.info("[Listener] did not find event #{cursor}.")
+
+          cursor
+
+        event ->
+          Logger.debug("[Listener] #{config.callback} handling event.\n#{inspect(event)}")
+          handle_event(event, cursor, config)
       end
 
     schedule_work()
@@ -30,7 +36,7 @@ defmodule Spine.Listener do
   end
 
   def schedule_work do
-    Process.send_after(self(), :process, 50)
+    Process.send_after(self(), :process, 500)
   end
 
   defp handle_event(event, cursor, config) do

@@ -7,8 +7,15 @@ defmodule Spine.EventStore.Postgres do
     Commit.commit(List.wrap(events), cursor)
     |> repo.transaction()
     |> case do
-      {:ok, _results} -> :ok
-      _other -> :error
+      {:ok, _results} ->
+        Logger.debug("[EventStore] commited events.\n#{inspect(events)}")
+
+        :ok
+
+      _other ->
+        Logger.warn("[EventStore] event not commited.")
+
+        :error
     end
   end
 
