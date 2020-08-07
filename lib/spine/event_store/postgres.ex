@@ -1,6 +1,5 @@
 defmodule Spine.EventStore.Postgres do
   alias __MODULE__.{Commit, Schema}
-  alias Spine.EventStore.Serializer
   require Logger
 
   def commit(repo, events, cursor) do
@@ -42,12 +41,12 @@ defmodule Spine.EventStore.Postgres do
     repo.get_by(Schema.Event, event_number: event_number)
     |> case do
       nil -> nil
-      event -> Serializer.deserialize(event.data)
+      event -> event.data
     end
   end
 
   defp format_events(events) do
-    Enum.map(events, &Serializer.deserialize(&1.data))
+    Enum.map(events, &Map.get(&1, :data))
   end
 
   defmacro __using__(repo: repo) do

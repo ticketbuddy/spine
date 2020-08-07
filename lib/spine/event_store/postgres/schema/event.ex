@@ -7,7 +7,7 @@ defmodule Spine.EventStore.Postgres.Schema.Event do
     field(:aggregate_id, :string)
     field(:event_number, :integer)
     field(:aggregate_number, :integer)
-    field(:data, :string)
+    field(:data, Spine.EventStore.Postgres.Term)
 
     timestamps()
   end
