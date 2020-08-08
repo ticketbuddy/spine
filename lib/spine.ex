@@ -3,6 +3,18 @@ defmodule Spine do
   Documentation for Spine.
   """
 
+  @callback commit(events, cursor) :: :ok
+  @callback all_events() :: List.t()
+  @callback aggregate_events(aggregate_id) :: List.t()
+  @callback event(event_number) :: any()
+  @callback subscribe(channel) :: :ok
+  @callback subscribe(channel, starting_event_number) :: :ok
+  @callback subscriptions() :: map()
+  @callback cursor(channel) :: non_negative_integer()
+  @callback completed(channel, cursor) :: :ok
+  @callback handle(wish) :: :ok | any()
+  @callback read(aggregate_id, handler) :: any()
+
   defmacro __using__(event_store: event_store, bus: bus) do
     quote do
       @event_store unquote(event_store)
