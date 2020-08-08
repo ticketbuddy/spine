@@ -3,29 +3,29 @@ defmodule Spine do
   Documentation for Spine.
   """
 
+  @type events :: any() | List.t()
+  @type cursor :: {String.t(), non_neg_integer()}
+  @type aggregate_id :: String.t()
+  @type event_number :: non_neg_integer()
+  @type starting_event_number :: event_number()
+  @type channel :: String.t()
+  @type wish :: any()
+  @type handler :: Atom.t()
+
+  @callback commit(events, cursor) :: :ok
+  @callback all_events() :: List.t()
+  @callback aggregate_events(aggregate_id) :: List.t()
+  @callback event(event_number) :: any()
+  @callback subscribe(channel) :: :ok
+  @callback subscribe(channel, starting_event_number) :: :ok
+  @callback subscriptions() :: map()
+  @callback cursor(channel) :: non_neg_integer()
+  @callback completed(channel, cursor) :: :ok
+  @callback handle(wish) :: :ok | any()
+  @callback read(aggregate_id, handler) :: any()
+
   defmacro __using__(event_store: event_store, bus: bus) do
     quote do
-      @type events :: any() | List.t()
-      @type cursor :: {String.t(), non_neg_integer()}
-      @type aggregate_id :: String.t()
-      @type event_number :: non_neg_integer()
-      @type starting_event_number :: event_number()
-      @type channel :: String.t()
-      @type wish :: any()
-      @type handler :: Atom.t()
-
-      @callback commit(events, cursor) :: :ok
-      @callback all_events() :: List.t()
-      @callback aggregate_events(aggregate_id) :: List.t()
-      @callback event(event_number) :: any()
-      @callback subscribe(channel) :: :ok
-      @callback subscribe(channel, starting_event_number) :: :ok
-      @callback subscriptions() :: map()
-      @callback cursor(channel) :: non_neg_integer()
-      @callback completed(channel, cursor) :: :ok
-      @callback handle(wish) :: :ok | any()
-      @callback read(aggregate_id, handler) :: any()
-
       @event_store unquote(event_store)
       @bus unquote(bus)
 
