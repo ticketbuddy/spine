@@ -4,16 +4,23 @@ defmodule Spine.Listener do
 
   def init(state) do
     {_, config} = state
-    {:ok, cursor} = config.spine.subscribe(config.channel)
 
-    send(self(), :process)
+    send(self(), :subscribe)
 
-    {:ok, {cursor, config}}
+    {:ok, {nil, config}}
   end
 
   def start_link(config) do
     init_state = {1, config}
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
+  end
+
+  def handle_info(:subscribe, {_cursor, config}) do
+    {:ok, cursor} = config.spine.subscribe(config.channel)
+
+    schedule_work()
+
+    {:noreply, {cursor, config}}
   end
 
   def handle_info(:process, state) do

@@ -33,7 +33,7 @@ defmodule Spine.ListenerTest do
 
   describe "processing an event" do
     test "when no events to process", %{config: config} do
-      Map.put(config, :callback, Callback)
+      config = Map.put(config, :callback, Callback)
 
       {:ok, listener} = Spine.Listener.start_link(config)
 
