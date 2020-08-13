@@ -11,8 +11,8 @@ defmodule Spine.EventStore.Postgres do
 
         :ok
 
-      _other ->
-        Logger.warn("[EventStore] event not commited.")
+      error ->
+        Logger.warn("[EventStore] event not commited.\n#{inspect(error)}")
 
         :error
     end
