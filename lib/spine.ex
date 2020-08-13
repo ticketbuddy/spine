@@ -5,6 +5,8 @@ defmodule Spine do
 
   defmacro __using__(event_store: event_store, bus: bus) do
     quote do
+      require Logger
+
       @event_store unquote(event_store)
       @bus unquote(bus)
 
@@ -47,6 +49,14 @@ defmodule Spine do
         cursor = {aggregate_id, Enum.count(events)}
 
         agg_state = Spine.Aggregate.build_state(aggregate_id, events, handler)
+
+        Logger.debug(
+          inspect(%{
+            msg: "Processing wish",
+            wish: wish,
+            cursor: cursor
+          })
+        )
 
         with {:ok, events} <- handler.execute(agg_state, wish),
              :ok <- commit(List.wrap(events), cursor) do
