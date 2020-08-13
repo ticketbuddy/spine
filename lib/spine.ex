@@ -7,6 +7,8 @@ defmodule Spine do
     quote do
       require Logger
 
+      @count_from 1
+
       @event_store unquote(event_store)
       @bus unquote(bus)
 
@@ -46,7 +48,7 @@ defmodule Spine do
         aggregate_id = Spine.Wish.aggregate_id(wish)
 
         events = aggregate_events(aggregate_id)
-        cursor = {aggregate_id, Enum.count(events)}
+        cursor = {aggregate_id, Enum.count(events) + @count_from}
 
         agg_state = Spine.Aggregate.build_state(aggregate_id, events, handler)
 

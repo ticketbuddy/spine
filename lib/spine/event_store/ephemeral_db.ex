@@ -1,6 +1,7 @@
 defmodule Spine.EventStore.EphemeralDb do
   use GenServer
   @behaviour Spine.EventStore
+  @count_from 1
 
   def init(opts), do: {:ok, opts}
 
@@ -35,7 +36,7 @@ defmodule Spine.EventStore.EphemeralDb do
 
     new_events = Enum.map(new_events, &{aggregate_id, &1})
 
-    case Enum.count(events_on_aggregate) == key do
+    case Enum.count(events_on_aggregate) + @count_from == key do
       true -> {:reply, :ok, events ++ new_events}
       false -> {:reply, :incorrect_key, events}
     end
