@@ -47,7 +47,7 @@ defmodule Spine.ListenerTest do
       {:ok, listener} = Spine.Listener.start_link(config)
 
       event = {:an_event, self()}
-      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 0})
+      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 1})
 
       assert_receive(:handled_an_event, 1_000)
 
@@ -61,7 +61,7 @@ defmodule Spine.ListenerTest do
       {:ok, listener} = Spine.Listener.start_link(config)
 
       event = {:event_for_failed_callback, self()}
-      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 0})
+      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 1})
 
       assert_receive(:event_for_failed_callback, 1_000)
 

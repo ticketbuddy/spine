@@ -10,20 +10,20 @@ defmodule Spine.EventStore.EphemeralDbTest do
 
   describe "commit events" do
     test "has correct key" do
-      cursor = {"counter-1", 0}
+      cursor = {"counter-1", 1}
 
       assert :ok = EphemeralDb.commit([5, 6, 7, 8], cursor)
     end
 
     test "has incorrect key" do
-      cursor = {"counter-1", 1}
+      cursor = {"counter-1", 2}
 
       assert :incorrect_key = EphemeralDb.commit([5, 6, 7, 8], cursor)
     end
 
     test "aggregate key is aggregate independant" do
-      cursor_one = {"counter-1", 0}
-      cursor_two = {"counter-2", 0}
+      cursor_one = {"counter-1", 1}
+      cursor_two = {"counter-2", 1}
 
       assert :ok = EphemeralDb.commit([5, 6, 7, 8], cursor_one)
       assert :ok = EphemeralDb.commit([:x, :y, :z], cursor_two)
@@ -40,14 +40,14 @@ defmodule Spine.EventStore.EphemeralDbTest do
   end
 
   test "keeps order when new events are fetched" do
-    :ok = EphemeralDb.commit([5], {"counter-1", 0})
-    :ok = EphemeralDb.commit([:a], {"counter-1", 1})
+    :ok = EphemeralDb.commit([5], {"counter-1", 1})
+    :ok = EphemeralDb.commit([:a], {"counter-1", 2})
 
     assert [5, :a] == EphemeralDb.all_events()
   end
 
   test "can retrieve individual events" do
-    :ok = EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 0})
+    :ok = EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 1})
 
     assert :a == EphemeralDb.event(0)
     assert :b == EphemeralDb.event(1)
@@ -56,7 +56,7 @@ defmodule Spine.EventStore.EphemeralDbTest do
   end
 
   test "retrieves events" do
-    cursor = {"counter-1", 0}
+    cursor = {"counter-1", 1}
 
     EphemeralDb.commit([:a, :b, :c, :d], cursor)
 
@@ -64,8 +64,8 @@ defmodule Spine.EventStore.EphemeralDbTest do
   end
 
   test "retrieves events for given aggregate" do
-    EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 0})
-    EphemeralDb.commit([9, 7, 5, 3], {"counter-2", 0})
+    EphemeralDb.commit([:a, :b, :c, :d], {"counter-1", 1})
+    EphemeralDb.commit([9, 7, 5, 3], {"counter-2", 1})
 
     assert [:a, :b, :c, :d] ==
              EphemeralDb.aggregate_events("counter-1")

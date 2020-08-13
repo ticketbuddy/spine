@@ -9,22 +9,22 @@ defmodule Spine.EventStore.PostgresTest do
   describe "committing events" do
     test "commits a single event" do
       event = %TestApp.Incremented{}
-      cursor = {"aggregate-12345", 0}
+      cursor = {"aggregate-12345", 1}
 
       assert :ok == PostgresTestDb.commit(event, cursor)
     end
 
     test "commits multiple single events" do
       events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
-      cursor = {"aggregate-12345", 0}
+      cursor = {"aggregate-12345", 1}
 
       assert :ok == PostgresTestDb.commit(events, cursor)
     end
 
     test "when cursor points to an already written event" do
       events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
-      cursor_one = {"aggregate-12345", 0}
-      cursor_two = {"aggregate-12345", 1}
+      cursor_one = {"aggregate-12345", 1}
+      cursor_two = {"aggregate-12345", 2}
 
       assert :ok == PostgresTestDb.commit(events, cursor_one)
       assert :error == PostgresTestDb.commit(events, cursor_two)
@@ -33,13 +33,13 @@ defmodule Spine.EventStore.PostgresTest do
 
   describe "fetches events" do
     setup do
-      PostgresTestDb.commit(%TestApp.Incremented{count: 5}, {"aggregate-12345", 0})
-      PostgresTestDb.commit(%TestApp.Incremented{count: 10}, {"aggregate-12345", 1})
-      PostgresTestDb.commit(%TestApp.Incremented{count: 15}, {"aggregate-12345", 2})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 5}, {"aggregate-12345", 1})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 10}, {"aggregate-12345", 2})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 15}, {"aggregate-12345", 3})
 
-      PostgresTestDb.commit(%TestApp.Incremented{count: 20}, {"aggregate-6789", 0})
-      PostgresTestDb.commit(%TestApp.Incremented{count: 25}, {"aggregate-6789", 1})
-      PostgresTestDb.commit(%TestApp.Incremented{count: 30}, {"aggregate-6789", 2})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 20}, {"aggregate-6789", 1})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 25}, {"aggregate-6789", 2})
+      PostgresTestDb.commit(%TestApp.Incremented{count: 30}, {"aggregate-6789", 3})
 
       :ok
     end

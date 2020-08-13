@@ -33,7 +33,7 @@ defmodule SpineTest do
   describe "Integration" do
     test "event store and bus" do
       listener = "listener-one"
-      cursor = {"counter-1", 0}
+      cursor = {"counter-1", 1}
       events = [5, 21, 32]
 
       MyApp.commit(events, cursor)
