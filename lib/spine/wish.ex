@@ -31,15 +31,4 @@ defmodule Spine.Wish do
     module = wish.__struct__
     module.aggregate_handler()
   end
-
-  def id_with_prefix(wish) do
-    module = wish.__struct__
-    prefix = module.aggregate_handler().id_prefix()
-    current_id = aggregate_id(wish)
-
-    case Headwater.Aggregate.Id.prefix_id(prefix, current_id) do
-      {:ok, prefixed_id} -> {:ok, Map.put(wish, module.wish_primary_key(), prefixed_id)}
-      {:warn, :invalid_id} -> {:warn, :invalid_id}
-    end
-  end
 end
