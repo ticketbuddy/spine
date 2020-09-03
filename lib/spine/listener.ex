@@ -29,12 +29,20 @@ defmodule Spine.Listener do
     cursor =
       case config.spine.event(cursor) do
         nil ->
-          Logger.info("[Listener] did not find event #{cursor}.")
+          :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback
+          })
 
           cursor
 
         event ->
-          Logger.debug("[Listener] #{config.callback} handling event.\n#{inspect(event)}")
+          :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback,
+            event: event
+          })
+
           handle_event(event, cursor, config)
       end
 
@@ -49,11 +57,20 @@ defmodule Spine.Listener do
   defp handle_event(event, cursor, config) do
     case config.callback.handle_event(event) do
       :ok ->
+        :telemetry.execute([:spine, :listener, :handle_event, :ok], %{count: 1}, %{
+          callback: config.callback,
+          event: event
+        })
+
         config.spine.completed(config.channel, cursor)
         cursor + 1
 
       other ->
-        Logger.error("#{config.callback} returned error:\n" <> inspect(other))
+        :telemetry.execute([:spine, :listener, :handle_event, :error], %{count: 1}, %{
+          error: other,
+          callback: config.callback,
+          event: event
+        })
 
         cursor
     end

@@ -10,8 +10,22 @@ defmodule Spine.BusDb.Postgres do
     })
     |> repo.insert()
     |> case do
-      {:ok, subscription} -> {:ok, subscription.cursor}
-      {:error, _changeset} -> {:ok, cursor(repo, channel)}
+      {:ok, subscription} ->
+        :telemetry.execute([:spine, :bus_db, :subscription, :ok], %{count: 1}, %{
+          channel: channel,
+          starting_event_number: starting_event_number
+        })
+
+        {:ok, subscription.cursor}
+
+      {:error, error} ->
+        :telemetry.execute([:spine, :bus_db, :subscription, :error], %{count: 1}, %{
+          error: error,
+          channel: channel,
+          starting_event_number: starting_event_number
+        })
+
+        {:ok, cursor(repo, channel)}
     end
   end
 
@@ -26,15 +40,16 @@ defmodule Spine.BusDb.Postgres do
     repo.get(Schema.Subscription, channel)
     |> case do
       %{cursor: cursor} ->
-        Logger.debug("[BUS] Fetched: #{channel} at #{cursor}")
+        :telemetry.execute([:spine, :bus_db, :get_cursor, :ok], %{count: 1}, %{
+          channel: channel,
+          cursor: cursor
+        })
 
         cursor
     end
   end
 
   def completed(repo, channel, cursor) do
-    Logger.debug("[BUS] Completed #{channel} at #{cursor}")
-
     subscription = repo.get!(Schema.Subscription, channel)
 
     if subscription.cursor == cursor do
@@ -42,7 +57,13 @@ defmodule Spine.BusDb.Postgres do
       |> Ecto.Changeset.change(cursor: cursor + 1)
       |> repo.update()
       |> case do
-        {:ok, _changes} -> :ok
+        {:ok, _changes} ->
+          :telemetry.execute([:spine, :bus_db, :event_completed, :ok], %{count: 1}, %{
+            channel: channel,
+            cursor: cursor
+          })
+
+          :ok
       end
     else
       :ok
