@@ -3,16 +3,24 @@ defmodule Spine.EventStore.Postgres do
   require Logger
 
   def commit(repo, events, cursor) do
-    Commit.commit(List.wrap(events), cursor)
+    events = List.wrap(events)
+
+    Commit.commit(events, cursor)
     |> repo.transaction()
     |> case do
       {:ok, _results} ->
-        Logger.debug("[EventStore] commited events.\n#{inspect(events)}")
+        :telemetry.execute([:spine, :event_store, :commit, :ok], %{count: Enum.count(events)}, %{
+          cursor: cursor
+        })
 
         :ok
 
       error ->
-        Logger.warn("[EventStore] event not commited.\n#{inspect(error)}")
+        :telemetry.execute(
+          [:spine, :event_store, :commit, :error],
+          %{count: Enum.count(events)},
+          %{cursor: cursor, error: error}
+        )
 
         :error
     end
@@ -26,6 +34,10 @@ defmodule Spine.EventStore.Postgres do
   def aggregate_events(repo, aggregate_id) do
     import Ecto.Query
 
+    :telemetry.execute([:spine, :event_store, :load_aggregate], %{count: 1}, %{
+      aggregate_id: aggregate_id
+    })
+
     from(e in Schema.Event,
       where:
         e.aggregate_id ==
@@ -36,12 +48,21 @@ defmodule Spine.EventStore.Postgres do
   end
 
   def event(repo, event_number) do
-    Logger.debug("[STORE] Fetched: #{event_number}")
-
     repo.get_by(Schema.Event, event_number: event_number)
     |> case do
-      nil -> nil
-      event -> event.data
+      nil ->
+        :telemetry.execute([:spine, :event_store, :get_event, :missed], %{count: 1}, %{
+          event_number: event_number
+        })
+
+        nil
+
+      event ->
+        :telemetry.execute([:spine, :event_store, :get_event, :ok], %{count: 1}, %{
+          event_number: event_number
+        })
+
+        event.data
     end
   end
 
