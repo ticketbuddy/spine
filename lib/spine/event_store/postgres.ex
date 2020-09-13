@@ -41,7 +41,8 @@ defmodule Spine.EventStore.Postgres do
     from(e in Schema.Event,
       where:
         e.aggregate_id ==
-          ^aggregate_id
+          ^aggregate_id,
+      order_by: [asc: e.event_number]
     )
     |> repo.all()
     |> format_events()
