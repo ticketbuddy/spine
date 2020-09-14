@@ -30,6 +30,13 @@ defmodule Spine.EventStore.EphemeralDb do
     GenServer.call(__MODULE__, {:event, event_number})
   end
 
+  def next_event(event_number) do
+    case event(event_number) do
+      nil -> {:ok, :no_next_event}
+      event -> {:ok, event_number, event}
+    end
+  end
+
   def handle_call({:commit, new_events, cursor}, _from, events) do
     {aggregate_id, key} = cursor
     events_on_aggregate = events_for_aggregate(events, aggregate_id)

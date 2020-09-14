@@ -9,4 +9,5 @@ defmodule Spine.EventStore do
   @callback all_events() :: events
   @callback aggregate_events() :: aggregate_id
   @callback event(key) :: any()
+  @callback next_event(key) :: any()
 end

@@ -27,8 +27,8 @@ defmodule Spine.Listener do
     {cursor, config} = state
 
     cursor =
-      case config.spine.event(cursor) do
-        nil ->
+      case config.spine.next_event(cursor) do
+        {:ok, :no_next_event} ->
           :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
             cursor: cursor,
             callback: config.callback
@@ -36,7 +36,7 @@ defmodule Spine.Listener do
 
           cursor
 
-        event ->
+        {:ok, cursor, event} ->
           :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
             cursor: cursor,
             callback: config.callback,
