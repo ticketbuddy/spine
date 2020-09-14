@@ -15,4 +15,28 @@ event = %TestApp.Incremented{}
 }
 |> Repo.insert!()
 
+%Event{
+  aggregate_id: "seeded-aggregate-2",
+  event_number: 2,
+  aggregate_number: 1,
+  data: event
+}
+|> Repo.insert!()
+
+%Event{
+  aggregate_id: "seeded-aggregate-2",
+  event_number: 4,
+  aggregate_number: 2,
+  data: event
+}
+|> Repo.insert!()
+
+%Event{
+  aggregate_id: "seeded-aggregate-2",
+  event_number: 5,
+  aggregate_number: 3,
+  data: event
+}
+|> Repo.insert!()
+
 IO.puts "Seeded."

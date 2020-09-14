@@ -48,6 +48,9 @@ defmodule Spine.EventStore.PostgresTest do
       assert [
                # seeded event
                %TestApp.Incremented{count: 1},
+               %TestApp.Incremented{count: 1},
+               %TestApp.Incremented{count: 1},
+               %TestApp.Incremented{count: 1},
                %TestApp.Incremented{count: 5},
                %TestApp.Incremented{count: 10},
                %TestApp.Incremented{count: 15},
@@ -67,6 +70,18 @@ defmodule Spine.EventStore.PostgresTest do
 
     test "fetches a single event by event_number" do
       assert %TestApp.Incremented{count: 1} == PostgresTestDb.event(1)
+    end
+
+    test "fetches the next event, when there is a gap" do
+      event_number = 3
+
+      assert {:ok, 4, %TestApp.Incremented{}} == PostgresTestDb.next_event(event_number)
+    end
+
+    test "when there is not a next_event" do
+      event_number = 6_234
+
+      assert {:ok, :no_next_event} == PostgresTestDb.next_event(event_number)
     end
 
     test "when individual event is not found" do

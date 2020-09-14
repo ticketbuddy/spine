@@ -67,6 +67,35 @@ defmodule Spine.EventStore.Postgres do
     end
   end
 
+  @doc """
+  event_number is stored as `bigserial`.
+  This means there can be gaps.
+  e.g 1, 2, 3, 5, 6, 7, 9
+
+  This function will return the next event, when
+  given an event_number.
+  """
+  def next_event(repo, event_number) do
+    import Ecto.Query
+
+    from(e in Schema.Event,
+      where: e.event_number >= ^event_number,
+      order_by: [asc: e.event_number],
+      limit: 1
+    )
+    |> repo.one()
+    |> case do
+      nil ->
+        {:ok, :no_next_event}
+
+      %Spine.EventStore.Postgres.Schema.Event{
+        data: data,
+        event_number: event_number
+      } ->
+        {:ok, event_number, data}
+    end
+  end
+
   defp format_events(events) do
     Enum.map(events, &Map.get(&1, :data))
   end
@@ -95,6 +124,11 @@ defmodule Spine.EventStore.Postgres do
       @impl Spine.EventStore
       def event(event_number) do
         Postgres.event(@repo, event_number)
+      end
+
+      @impl Spine.EventStore
+      def next_event(event_number) do
+        Postgres.next_event(@repo, event_number)
       end
     end
   end
