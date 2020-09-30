@@ -1,9 +1,10 @@
 defmodule Spine.EventStore.Postgres.Commit do
-  alias Spine.EventStore.Postgres.Schema.Event
+  alias Spine.EventStore.Postgres.Schema.{Event, Idempotent}
   alias Ecto.Multi
 
-  def commit(events, cursor) do
+  def commit(events, cursor, opts) do
     {aggregate_id, key} = cursor
+    idempotent_key = Keyword.fetch(opts, :idempotent_key)
 
     events
     |> Enum.with_index(key)
@@ -17,5 +18,13 @@ defmodule Spine.EventStore.Postgres.Commit do
 
       Multi.insert(multi, {:event, event_key}, changeset)
     end)
+    |> ensure_idempotency(idempotent_key)
+  end
+
+  defp ensure_idempotency(multi, nil), do: multi
+
+  defp ensure_idempotency(multi, idempotent_key) do
+    changeset = Idempotent.changeset(%{key: idempotent_key})
+    Multi.insert(multi, {:idempotent_check}, changeset)
   end
 end
