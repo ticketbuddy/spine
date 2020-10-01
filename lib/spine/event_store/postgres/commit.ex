@@ -4,7 +4,7 @@ defmodule Spine.EventStore.Postgres.Commit do
 
   def commit(events, cursor, opts) do
     {aggregate_id, key} = cursor
-    idempotent_key = Keyword.fetch(opts, :idempotent_key)
+    idempotent_key = Keyword.get(opts, :idempotent_key)
 
     events
     |> Enum.with_index(key)

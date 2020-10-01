@@ -1,16 +1,18 @@
 defmodule SpineTest do
   use ExUnit.Case
 
-  setup do
-    {:ok, _pid} = Spine.BusDb.EphemeralDb.start_link([])
-
-    {:ok, _pid} = Spine.EventStore.EphemeralDb.start_link([])
-
-    :ok
-  end
+  use Test.Support.Helper, repo: Test.Support.Repo
 
   defmodule MyApp do
-    use Spine, event_store: Spine.EventStore.EphemeralDb, bus: Spine.BusDb.EphemeralDb
+    defmodule MyEventStore do
+      use Spine.EventStore.Postgres, repo: Test.Support.Repo
+    end
+
+    defmodule MyEventBus do
+      use Spine.BusDb.Postgres, repo: Test.Support.Repo
+    end
+
+    use Spine, event_store: MyEventStore, bus: MyEventBus
 
     defmodule Handler do
       def execute(_current_state, %{amount: amount}) when amount < 0,
@@ -31,25 +33,6 @@ defmodule SpineTest do
   end
 
   describe "Integration" do
-    test "event store and bus" do
-      listener = "listener-one"
-      cursor = {"counter-1", 1}
-      events = [5, 21, 32]
-
-      MyApp.commit(events, cursor)
-      MyApp.subscribe("listener-one")
-
-      listener_cursor = MyApp.cursor(listener)
-
-      assert 5 == MyApp.event(listener_cursor)
-
-      MyApp.completed(listener, listener_cursor)
-
-      listener_cursor = MyApp.cursor(listener)
-
-      assert 21 == MyApp.event(listener_cursor)
-    end
-
     test "handling a wish that is allowed" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 

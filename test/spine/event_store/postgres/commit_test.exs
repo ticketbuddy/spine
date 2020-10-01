@@ -5,6 +5,7 @@ defmodule Spine.EventStore.Postgres.CommitTest do
   test "builds multi, with multiple events to insert" do
     events = [:one, :two]
     cursor = {"agg-12345", 0}
+    opts = []
 
     assert [
              {{:event, 0},
@@ -33,6 +34,21 @@ defmodule Spine.EventStore.Postgres.CommitTest do
                  data: %Spine.EventStore.Postgres.Schema.Event{},
                  valid?: true
                }, []}}
-           ] = Commit.commit(events, cursor) |> Ecto.Multi.to_list()
+           ] = Commit.commit(events, cursor, opts) |> Ecto.Multi.to_list()
+  end
+
+  test "when idempotent_key is provided, then idempotency check is added to the transaction" do
+    events = [:one, :two]
+    cursor = {"agg-12345", 0}
+    opts = [idempotent_key: "only-do-once"]
+
+    assert {{:idempotent_check},
+            {:insert,
+             %Ecto.Changeset{
+               action: :insert,
+               changes: %{key: "only-do-once"},
+               errors: [],
+               valid?: true
+             }, []}} = Commit.commit(events, cursor, opts) |> Ecto.Multi.to_list() |> List.last()
   end
 end

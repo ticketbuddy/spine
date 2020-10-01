@@ -10,6 +10,7 @@ defmodule Spine.EventStore.Postgres.Schema.Idempotent do
     import Ecto.Changeset
 
     %__MODULE__{}
+
     %__MODULE__{}
     |> cast(params, [:key])
     |> validate_required([:key])
