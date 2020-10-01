@@ -62,7 +62,7 @@ defmodule Spine do
         )
 
         with {:ok, events} <- handler.execute(agg_state, wish),
-             :ok <- commit(List.wrap(events), cursor, opts) do
+             res when res in [:ok, {:ok, :idempotent}] <- commit(List.wrap(events), cursor, opts) do
           :ok
         end
       end

@@ -15,6 +15,17 @@ defmodule Spine.EventStore.Postgres do
 
         :ok
 
+      {:error, {:idempotent_check}, _changeset, _data} ->
+        :telemetry.execute(
+          [:spine, :event_store, :commit, :idempotent],
+          %{count: Enum.count(events)},
+          %{
+            cursor: cursor
+          }
+        )
+
+        {:ok, :idempotent}
+
       error ->
         :telemetry.execute(
           [:spine, :event_store, :commit, :error],

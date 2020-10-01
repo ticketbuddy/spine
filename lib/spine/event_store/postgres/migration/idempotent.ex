@@ -9,8 +9,8 @@ defmodule Spine.EventStore.Postgres.Migration.Idempotent do
 
     create(
       unique_index(
-        :spine_event,
-        [:key],
+        :spine_idempotent,
+        :key,
         name: :idempotency_lock
       )
     )

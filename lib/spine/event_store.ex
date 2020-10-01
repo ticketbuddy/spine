@@ -6,7 +6,7 @@ defmodule Spine.EventStore do
   @type cursor :: {aggregate_id, key}
   @type opts :: [idempotent_key: String.t()] | []
 
-  @callback commit(events, cursor, opts) :: :ok
+  @callback commit(events, cursor, opts) :: :ok | {:ok, :idempotent} | :error
   @callback all_events() :: events
   @callback aggregate_events() :: aggregate_id
   @callback event(key) :: any()

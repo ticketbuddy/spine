@@ -29,6 +29,17 @@ defmodule Spine.EventStore.PostgresTest do
       assert :ok == PostgresTestDb.commit(events, cursor_one, [])
       assert :error == PostgresTestDb.commit(events, cursor_two, [])
     end
+
+    test "respects idempotent_key when provided" do
+      events = [%TestApp.Incremented{}]
+      cursor_one = {"aggregate-12345", 1}
+      cursor_two = {"aggregate-12345", 2}
+
+      assert :ok == PostgresTestDb.commit(events, cursor_one, idempotent_key: "only-once-please")
+
+      assert {:ok, :idempotent} ==
+               PostgresTestDb.commit(events, cursor_two, idempotent_key: "only-once-please")
+    end
   end
 
   describe "fetches events" do
