@@ -51,7 +51,7 @@ defmodule Spine.Listener do
   end
 
   def schedule_work do
-    Process.send_after(self(), :process, 500)
+    send(self(), :process)
   end
 
   defp handle_event(event, cursor, config) do

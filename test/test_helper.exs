@@ -1,3 +1,7 @@
+Mox.defmock(EventStoreMock, for: Spine.EventStore)
+Mox.defmock(BusDbMock, for: Spine.BusDb)
+Mox.defmock(ListenerCallbackMock, for: Spine.Listener.Callback)
+
 ExUnit.start()
 
 alias Test.Support.Repo
