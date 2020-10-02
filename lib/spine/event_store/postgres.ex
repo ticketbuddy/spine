@@ -2,10 +2,10 @@ defmodule Spine.EventStore.Postgres do
   alias __MODULE__.{Commit, Schema}
   require Logger
 
-  def commit(repo, events, cursor) do
+  def commit(repo, events, cursor, opts) do
     events = List.wrap(events)
 
-    Commit.commit(events, cursor)
+    Commit.commit(events, cursor, opts)
     |> repo.transaction()
     |> case do
       {:ok, _results} ->
@@ -14,6 +14,17 @@ defmodule Spine.EventStore.Postgres do
         })
 
         :ok
+
+      {:error, {:idempotent_check}, _changeset, _data} ->
+        :telemetry.execute(
+          [:spine, :event_store, :commit, :idempotent],
+          %{count: Enum.count(events)},
+          %{
+            cursor: cursor
+          }
+        )
+
+        {:ok, :idempotent}
 
       error ->
         :telemetry.execute(
@@ -107,8 +118,8 @@ defmodule Spine.EventStore.Postgres do
       alias Spine.EventStore.Postgres
 
       @impl Spine.EventStore
-      def commit(events, cursor) do
-        Postgres.commit(@repo, events, cursor)
+      def commit(events, cursor, opts) do
+        Postgres.commit(@repo, events, cursor, opts)
       end
 
       @impl Spine.EventStore

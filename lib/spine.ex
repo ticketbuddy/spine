@@ -33,7 +33,7 @@ defmodule Spine do
       @callback handle(wish) :: :ok | any()
       @callback read(aggregate_id, handler) :: any()
 
-      defdelegate commit(events, cursor), to: @event_store
+      defdelegate commit(events, cursor, opts), to: @event_store
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
@@ -44,7 +44,7 @@ defmodule Spine do
       defdelegate cursor(channel), to: @bus
       defdelegate completed(channel, cursor), to: @bus
 
-      def handle(wish) do
+      def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)
         aggregate_id = Spine.Wish.aggregate_id(wish)
 
@@ -62,7 +62,7 @@ defmodule Spine do
         )
 
         with {:ok, events} <- handler.execute(agg_state, wish),
-             :ok <- commit(List.wrap(events), cursor) do
+             res when res in [:ok, {:ok, :idempotent}] <- commit(List.wrap(events), cursor, opts) do
           :ok
         end
       end

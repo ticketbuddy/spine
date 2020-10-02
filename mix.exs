@@ -38,7 +38,8 @@ defmodule Spine.MixProject do
       {:ecto_sql, "~> 3.0"},
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.2"},
-      {:telemetry, "~> 0.4"}
+      {:telemetry, "~> 0.4"},
+      {:mox, "~> 1.0.0"}
     ]
   end
 end

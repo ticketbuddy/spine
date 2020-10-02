@@ -1,73 +1,128 @@
 defmodule Spine.ListenerTest do
   use ExUnit.Case
+  use Test.Support.Mox
 
-  defmodule AppsSpine do
-    use Spine, event_store: Spine.EventStore.EphemeralDb, bus: Spine.BusDb.EphemeralDb
+  defmodule MyApp do
+    use Spine, event_store: EventStoreMock, bus: BusDbMock
   end
 
-  defmodule Callback do
-    def handle_event({:an_event, pid}) do
-      send(pid, :handled_an_event)
-
-      :ok
-    end
-
-    def handle_event({:event_for_failed_callback, pid}) do
-      send(pid, :event_for_failed_callback)
-
-      :error
-    end
-  end
-
-  setup do
-    {:ok, _event_store} = Spine.EventStore.EphemeralDb.start_link([])
-    {:ok, _bus_db} = Spine.BusDb.EphemeralDb.start_link([])
-
-    %{
-      config: %{
-        channel: "listener-one",
-        spine: AppsSpine
-      }
+  test "can start the listener" do
+    config = %{
+      channel: "my-channel"
     }
+
+    assert {:ok, pid} = Spine.Listener.start_link(config)
+    assert is_pid(pid)
   end
 
-  describe "processing an event" do
-    test "when no events to process", %{config: config} do
-      config = Map.put(config, :callback, Callback)
+  test "init/1 subscribes the listener" do
+    config = %{}
+    state = {1, config}
 
-      {:ok, listener} = Spine.Listener.start_link(config)
+    Spine.Listener.init(state)
 
-      assert {0, config} == :sys.get_state({:global, "listener-one"})
+    assert_receive(:subscribe)
+  end
+
+  test "handle_info/1 catches :subscribe message, and starts process work" do
+    BusDbMock
+    |> expect(:subscribe, fn "my-channel" ->
+      {:ok, 5}
+    end)
+
+    config = %{
+      channel: "my-channel",
+      spine: MyApp
+    }
+
+    existing_state = {1, config}
+
+    assert {:noreply, {5, config}} == Spine.Listener.handle_info(:subscribe, existing_state)
+
+    assert_receive(:process)
+  end
+
+  describe "handle_info/1 :process message" do
+    test "when the event does not exist" do
+      EventStoreMock
+      |> expect(:next_event, fn 7 ->
+        {:ok, :no_next_event}
+      end)
+
+      config = %{
+        channel: "my-channel",
+        spine: MyApp,
+        callback: ListenerCallbackMock
+      }
+
+      existing_state = {7, config}
+
+      assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
+
+      assert_receive(:process)
     end
 
-    test "when event is successfully handled by callback", %{
-      config: config
-    } do
-      config = Map.put(config, :callback, Callback)
-      {:ok, listener} = Spine.Listener.start_link(config)
+    test "when the next event does exist, and event_handler returns :ok" do
+      event = %{an_event: "yes this is"}
 
-      event = {:an_event, self()}
-      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 1})
+      EventStoreMock
+      |> expect(:next_event, fn 7 ->
+        # NOTE: as postgres bigserial can have holes,
+        # it is possible that event 7 and 8 do not exist.
+        # therefore returning 9 is valid
+        {:ok, 9, event}
+      end)
 
-      assert_receive(:handled_an_event, 1_000)
+      ListenerCallbackMock
+      |> expect(:handle_event, 1, fn ^event ->
+        :ok
+      end)
 
-      assert %{"listener-one" => 1} == Spine.BusDb.EphemeralDb.subscriptions()
+      BusDbMock
+      |> expect(:completed, fn "my-channel", 9 ->
+        :ok
+      end)
 
-      assert {1, config} == :sys.get_state(listener)
+      config = %{
+        channel: "my-channel",
+        spine: MyApp,
+        callback: ListenerCallbackMock
+      }
+
+      existing_state = {7, config}
+
+      assert {:noreply, {10, config}} == Spine.Listener.handle_info(:process, existing_state)
+
+      assert_receive(:process)
     end
 
-    test "when event is not handled successfully by callback", %{config: config} do
-      config = Map.put(config, :callback, Callback)
-      {:ok, listener} = Spine.Listener.start_link(config)
+    test "when the next event does exist, and event_handler returns an error" do
+      event = %{an_event: "yes this is"}
 
-      event = {:event_for_failed_callback, self()}
-      Spine.EventStore.EphemeralDb.commit([event], {"aggregate-one", 1})
+      EventStoreMock
+      |> expect(:next_event, fn 7 ->
+        # NOTE: as postgres bigserial can have holes,
+        # it is possible that event 7 and 8 do not exist.
+        # therefore returning 9 is valid
+        {:ok, 9, event}
+      end)
 
-      assert_receive(:event_for_failed_callback, 1_000)
+      ListenerCallbackMock
+      |> expect(:handle_event, 1, fn ^event ->
+        {:error, :oh_no}
+      end)
 
-      assert %{"listener-one" => 0} == Spine.BusDb.EphemeralDb.subscriptions()
+      config = %{
+        channel: "my-channel",
+        spine: MyApp,
+        callback: ListenerCallbackMock
+      }
 
-      assert {0, config} == :sys.get_state(listener)
+      existing_state = {7, config}
+
+      assert {:noreply, {9, config}} == Spine.Listener.handle_info(:process, existing_state)
+
+      assert_receive(:process)
     end
   end
 end
