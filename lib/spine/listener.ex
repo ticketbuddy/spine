@@ -55,7 +55,12 @@ defmodule Spine.Listener do
   end
 
   defp handle_event(event, cursor, config) do
-    case config.callback.handle_event(event) do
+    meta = %{
+      channel: config.channel,
+      cursor: cursor
+    }
+
+    case config.callback.handle_event(event, meta) do
       :ok ->
         :telemetry.execute([:spine, :listener, :handle_event, :ok], %{count: 1}, %{
           callback: config.callback,
