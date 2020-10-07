@@ -74,7 +74,7 @@ defmodule Spine.ListenerTest do
       end)
 
       ListenerCallbackMock
-      |> expect(:handle_event, 1, fn ^event ->
+      |> expect(:handle_event, 1, fn ^event, %{channel: "my-channel", cursor: 9} ->
         :ok
       end)
 
@@ -108,7 +108,7 @@ defmodule Spine.ListenerTest do
       end)
 
       ListenerCallbackMock
-      |> expect(:handle_event, 1, fn ^event ->
+      |> expect(:handle_event, 1, fn ^event, %{channel: "my-channel", cursor: 9} ->
         {:error, :oh_no}
       end)
 

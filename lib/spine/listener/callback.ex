@@ -1,3 +1,5 @@
 defmodule Spine.Listener.Callback do
-  @callback handle_event(any) :: :ok | any
+  @type meta :: %{channel: String.t(), cursor: integer()}
+
+  @callback handle_event(any, meta) :: :ok | any
 end
