@@ -20,6 +20,7 @@ defmodule Spine do
       @type channel :: String.t()
       @type wish :: any()
       @type handler :: Atom.t()
+      @type opts :: [] | [idempotent_key: String.t()]
 
       @callback commit(events, cursor) :: :ok
       @callback all_events() :: List.t()
@@ -31,6 +32,7 @@ defmodule Spine do
       @callback cursor(channel) :: non_neg_integer()
       @callback completed(channel, cursor) :: :ok
       @callback handle(wish) :: :ok | any()
+      @callback handle(wish, opts) :: :ok | any()
       @callback read(aggregate_id, handler) :: any()
 
       defdelegate commit(events, cursor, opts), to: @event_store
