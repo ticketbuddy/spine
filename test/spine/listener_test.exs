@@ -96,40 +96,6 @@ defmodule Spine.ListenerTest do
       assert_receive(:process)
     end
 
-    test "when event exists, and handler returns {:ok, :idempotent}" do
-      event = %{an_event: "yes this is"}
-
-      EventStoreMock
-      |> expect(:next_event, fn 7 ->
-        # NOTE: as postgres bigserial can have holes,
-        # it is possible that event 7 and 8 do not exist.
-        # therefore returning 9 is valid
-        {:ok, 9, event}
-      end)
-
-      ListenerCallbackMock
-      |> expect(:handle_event, 1, fn ^event, %{channel: "my-channel", cursor: 9} ->
-        {:ok, :idempotent}
-      end)
-
-      BusDbMock
-      |> expect(:completed, fn "my-channel", 9 ->
-        :ok
-      end)
-
-      config = %{
-        channel: "my-channel",
-        spine: MyApp,
-        callback: ListenerCallbackMock
-      }
-
-      existing_state = {7, config}
-
-      assert {:noreply, {10, config}} == Spine.Listener.handle_info(:process, existing_state)
-
-      assert_receive(:process)
-    end
-
     test "when the next event does exist, and event_handler returns an error" do
       event = %{an_event: "yes this is"}
 
