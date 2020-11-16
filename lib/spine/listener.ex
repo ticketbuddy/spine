@@ -28,7 +28,7 @@ defmodule Spine.Listener do
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; spine, callback and a channel."
+    raise "Listener must be started with; spine, notifier, callback and a channel."
   end
 
   def handle_info(:process, state) do

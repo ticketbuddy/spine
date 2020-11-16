@@ -10,7 +10,7 @@ defmodule Spine.Listener.Notifier.PubSub do
       end
 
       def broadcast(message) do
-        Phoenix.PubSub.broadcast(@topic, message)
+        Phoenix.PubSub.broadcast(@pubsub, @topic, message)
       end
     end
   end

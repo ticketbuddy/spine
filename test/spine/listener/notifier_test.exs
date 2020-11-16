@@ -43,9 +43,9 @@ defmodule Spine.Listener.NotifierTest do
     test "notifies listener of new events" do
       expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
 
-      PubSub.broadcast(:notifier_pubsub, @topic, :process)
+      MyPubSub.broadcast(:process)
 
-      :timer.sleep(500)
+      :timer.sleep(200)
     end
   end
 end
