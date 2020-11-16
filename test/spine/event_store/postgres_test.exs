@@ -1,13 +1,30 @@
 defmodule Spine.EventStore.PostgresTest do
   use ExUnit.Case
+  use Test.Support.Mox
   use Test.Support.Helper, repo: Test.Support.Repo
 
   defmodule PostgresTestDb do
-    use Spine.EventStore.Postgres, repo: Test.Support.Repo
+    use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+  end
+
+  setup do
+    Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+
+    :ok
   end
 
   describe "committing events" do
     test "commits a single event" do
+      event = %TestApp.Incremented{}
+      cursor = {"aggregate-12345", 1}
+
+      assert :ok == PostgresTestDb.commit(event, cursor, [])
+    end
+
+    test "broadcasts message after a commit has been processed" do
+      ListenerNotifierMock
+      |> Mox.expect(:broadcast, fn :process -> :ok end)
+
       event = %TestApp.Incremented{}
       cursor = {"aggregate-12345", 1}
 

@@ -2,7 +2,7 @@ defmodule Spine.EventStore.Postgres do
   alias __MODULE__.{Commit, Schema}
   require Logger
 
-  def commit(repo, events, cursor, opts) do
+  def commit(repo, notifier, events, cursor, opts) do
     events = List.wrap(events)
 
     Commit.commit(events, cursor, opts)
@@ -12,6 +12,8 @@ defmodule Spine.EventStore.Postgres do
         :telemetry.execute([:spine, :event_store, :commit, :ok], %{count: Enum.count(events)}, %{
           cursor: cursor
         })
+
+        notifier.broadcast(:process)
 
         :ok
 
@@ -111,15 +113,17 @@ defmodule Spine.EventStore.Postgres do
     Enum.map(events, &Map.get(&1, :data))
   end
 
-  defmacro __using__(repo: repo) do
+  defmacro __using__(repo: repo, notifier: notifier) do
     quote do
       @behaviour Spine.EventStore
       @repo unquote(repo)
+      @notifier unquote(notifier)
+
       alias Spine.EventStore.Postgres
 
       @impl Spine.EventStore
       def commit(events, cursor, opts) do
-        Postgres.commit(@repo, events, cursor, opts)
+        Postgres.commit(@repo, @notifier, events, cursor, opts)
       end
 
       @impl Spine.EventStore
