@@ -1,11 +1,12 @@
 defmodule SpineTest do
   use ExUnit.Case
+  use Test.Support.Mox
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
   defmodule MyApp do
     defmodule MyEventStore do
-      use Spine.EventStore.Postgres, repo: Test.Support.Repo
+      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
     end
 
     defmodule MyEventBus do
@@ -30,6 +31,12 @@ defmodule SpineTest do
     import Spine.Wish, only: [defwish: 3]
 
     defwish(Inc, [:counter_id, amount: 1], to: MyApp.Handler)
+  end
+
+  setup do
+    Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+
+    :ok
   end
 
   describe "Integration" do

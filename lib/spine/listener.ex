@@ -10,7 +10,9 @@ defmodule Spine.Listener do
     {:ok, {nil, config}}
   end
 
-  def start_link(config) do
+  def start_link(
+        config = %{notifier: _notifier, spine: _event_bus, callback: _callback, channel: _channel}
+      ) do
     init_state = {1, config}
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
@@ -18,9 +20,15 @@ defmodule Spine.Listener do
   def handle_info(:subscribe, {_cursor, config}) do
     {:ok, cursor} = config.spine.subscribe(config.channel)
 
+    :ok = config.notifier.subscribe()
+
     schedule_work()
 
     {:noreply, {cursor, config}}
+  end
+
+  def start_link(_config) do
+    raise "Listener must be started with; spine, notifier, callback and a channel."
   end
 
   def handle_info(:process, state) do
@@ -43,10 +51,13 @@ defmodule Spine.Listener do
             event: event
           })
 
-          handle_event(event, cursor, config)
+          cursor = handle_event(event, cursor, config)
+
+          schedule_work()
+
+          cursor
       end
 
-    schedule_work()
     {:noreply, {cursor, config}}
   end
 

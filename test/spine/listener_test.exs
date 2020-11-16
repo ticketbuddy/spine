@@ -8,11 +8,22 @@ defmodule Spine.ListenerTest do
 
   test "can start the listener" do
     config = %{
-      channel: "my-channel"
+      channel: "my-channel",
+      callback: nil,
+      spine: nil,
+      notifier: nil
     }
 
     assert {:ok, pid} = Spine.Listener.start_link(config)
     assert is_pid(pid)
+  end
+
+  test "when incorrect listener params are provided" do
+    config = %{}
+
+    assert_raise(RuntimeError, fn ->
+      Spine.Listener.start_link(config)
+    end)
   end
 
   test "init/1 subscribes the listener" do
@@ -30,9 +41,13 @@ defmodule Spine.ListenerTest do
       {:ok, 5}
     end)
 
+    ListenerNotifierMock
+    |> expect(:subscribe, fn -> :ok end)
+
     config = %{
       channel: "my-channel",
-      spine: MyApp
+      spine: MyApp,
+      notifier: ListenerNotifierMock
     }
 
     existing_state = {1, config}
@@ -43,7 +58,7 @@ defmodule Spine.ListenerTest do
   end
 
   describe "handle_info/1 :process message" do
-    test "when the event does not exist" do
+    test "when the event does not exist, do not send :process message" do
       EventStoreMock
       |> expect(:next_event, fn 7 ->
         {:ok, :no_next_event}
@@ -59,7 +74,7 @@ defmodule Spine.ListenerTest do
 
       assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
 
-      assert_receive(:process)
+      refute_receive(:process)
     end
 
     test "when the next event does exist, and event_handler returns :ok" do

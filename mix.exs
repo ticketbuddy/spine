@@ -39,7 +39,8 @@ defmodule Spine.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.2"},
       {:telemetry, "~> 0.4"},
-      {:mox, "~> 1.0.0"}
+      {:mox, "~> 1.0.0"},
+      {:phoenix_pubsub, "~> 2.0"}
     ]
   end
 end
