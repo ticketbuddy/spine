@@ -85,7 +85,8 @@ defmodule Spine.ListenerTest do
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
-        {:ok, 9, event}
+
+        {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
       end)
 
       ListenerCallbackMock
@@ -119,7 +120,7 @@ defmodule Spine.ListenerTest do
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
-        {:ok, 9, event}
+        {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
       end)
 
       ListenerCallbackMock

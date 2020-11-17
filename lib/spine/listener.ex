@@ -44,14 +44,14 @@ defmodule Spine.Listener do
 
           cursor
 
-        {:ok, cursor, event} ->
+        {:ok, event, event_meta = %{event_number: cursor}} ->
           :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
             cursor: cursor,
             callback: config.callback,
             event: event
           })
 
-          cursor = handle_event(event, cursor, config)
+          cursor = handle_event(event, event_meta, config)
 
           schedule_work()
 
@@ -65,10 +65,11 @@ defmodule Spine.Listener do
     send(self(), :process)
   end
 
-  defp handle_event(event, cursor, config) do
+  defp handle_event(event, event_meta = %{event_number: cursor}, config) do
     meta = %{
       channel: config.channel,
-      cursor: cursor
+      cursor: cursor,
+      occured_at: event_meta.inserted_at
     }
 
     case config.callback.handle_event(event, meta) do

@@ -100,10 +100,18 @@ defmodule Spine.EventStore.PostgresTest do
       assert %TestApp.Incremented{count: 1} == PostgresTestDb.event(1)
     end
 
+    test "fetches the next event" do
+      event_number = 2
+
+      assert {:ok, %TestApp.Incremented{}, %{event_number: 2, inserted_at: %DateTime{}}} =
+               PostgresTestDb.next_event(event_number)
+    end
+
     test "fetches the next event, when there is a gap" do
       event_number = 3
 
-      assert {:ok, 4, %TestApp.Incremented{}} == PostgresTestDb.next_event(event_number)
+      assert {:ok, %TestApp.Incremented{}, %{event_number: 4, inserted_at: %DateTime{}}} =
+               PostgresTestDb.next_event(event_number)
     end
 
     test "when there is not a next_event" do
