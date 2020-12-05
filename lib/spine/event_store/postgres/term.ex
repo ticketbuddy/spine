@@ -1,5 +1,8 @@
 defmodule Spine.EventStore.Postgres.Term do
   @behaviour Ecto.Type
+
+  use Ecto.Type
+
   def type, do: :binary
   def cast(term) when is_binary(term), do: {:ok, term |> :erlang.binary_to_term()}
   def cast(term), do: {:ok, term}
