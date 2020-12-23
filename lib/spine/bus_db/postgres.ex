@@ -52,7 +52,7 @@ defmodule Spine.BusDb.Postgres do
   def completed(repo, channel, cursor) do
     subscription = repo.get!(Schema.Subscription, channel)
 
-    if subscription.cursor == cursor do
+    if cursor >= subscription.cursor do
       subscription
       |> Ecto.Changeset.change(cursor: cursor + 1)
       |> repo.update()
@@ -66,6 +66,13 @@ defmodule Spine.BusDb.Postgres do
           :ok
       end
     else
+      :telemetry.execute([:spine, :bus_db, :event_completed, :error], %{count: 1}, %{
+        channel: channel,
+        cursor: cursor,
+        current_cursor: subscription.cursor,
+        reason: "Completion for previous event"
+      })
+
       :ok
     end
   end

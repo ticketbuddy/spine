@@ -38,18 +38,34 @@ defmodule Spine.BusDb.PostgresTest do
 
       assert :ok == PostgresTestDb.completed("channel-one", 0)
 
+      expected_next_cursor = 1
+
       assert %{
-               "channel-one" => 1
+               "channel-one" => expected_next_cursor
              } == PostgresTestDb.subscriptions()
     end
 
-    test "does not increment cursor when :completed message received for incorrect cursor" do
+    test "does increment if completed cursor is greater than current cursor" do
       PostgresTestDb.subscribe("channel-one")
 
-      assert :ok == PostgresTestDb.completed("channel-one", 2)
+      assert :ok == PostgresTestDb.completed("channel-one", 5)
+
+      expected_next_cursor = 6
 
       assert %{
-               "channel-one" => 1
+               "channel-one" => expected_next_cursor
+             } == PostgresTestDb.subscriptions()
+    end
+
+    test "does not increment cursor when :completed message received for a previous cursor" do
+      PostgresTestDb.subscribe("channel-one")
+
+      assert :ok == PostgresTestDb.completed("channel-one", -1)
+
+      expected_next_cursor = 1
+
+      assert %{
+               "channel-one" => expected_next_cursor
              } == PostgresTestDb.subscriptions()
     end
   end
