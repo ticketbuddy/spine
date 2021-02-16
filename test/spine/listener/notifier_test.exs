@@ -2,9 +2,6 @@ defmodule Spine.Listener.NotifierTest do
   use ExUnit.Case, async: false
   use Test.Support.Mox
 
-  alias Phoenix.PubSub
-
-  @topic "new_event_topic"
   @listener_channel "notifier-test-channel"
 
   defmodule MyApp do
@@ -23,7 +20,7 @@ defmodule Spine.Listener.NotifierTest do
     {:ok, _pid} = Supervisor.start_link(children, opts)
 
     BusDbMock
-    |> expect(:subscribe, fn @listener_channel -> {:ok, 1} end)
+    |> expect(:subscribe, fn @listener_channel, 1 -> {:ok, 1} end)
 
     config = %{
       channel: @listener_channel,
@@ -35,6 +32,7 @@ defmodule Spine.Listener.NotifierTest do
     expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
 
     assert {:ok, pid} = Spine.Listener.start_link(config)
+    assert is_pid(pid)
 
     :ok
   end

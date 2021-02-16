@@ -8,7 +8,7 @@ defmodule Spine.EventStore do
 
   @callback commit(events, cursor, opts) :: :ok | {:ok, :idempotent} | :error
   @callback all_events() :: events
-  @callback aggregate_events() :: aggregate_id
-  @callback event(key) :: any()
-  @callback next_event(key) :: any()
+  @callback aggregate_events(aggregate_id) :: events
+  @callback event(key) :: event
+  @callback next_event(key) :: event
 end

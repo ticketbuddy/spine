@@ -26,7 +26,6 @@ defmodule Spine do
       @callback all_events() :: List.t()
       @callback aggregate_events(aggregate_id) :: List.t()
       @callback event(event_number) :: any()
-      @callback subscribe(channel) :: :ok
       @callback subscribe(channel, starting_event_number) :: :ok
       @callback subscriptions() :: map()
       @callback cursor(channel) :: non_neg_integer()
@@ -40,7 +39,6 @@ defmodule Spine do
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
       defdelegate next_event(event_number), to: @event_store
-      defdelegate subscribe(channel), to: @bus
       defdelegate subscribe(channel, starting_event_number), to: @bus
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus
