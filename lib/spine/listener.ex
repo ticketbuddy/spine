@@ -2,6 +2,8 @@ defmodule Spine.Listener do
   use GenServer
   import Logger
 
+  @default_starting_number 1
+
   def init(state) do
     {_, config} = state
 
@@ -13,12 +15,14 @@ defmodule Spine.Listener do
   def start_link(
         config = %{notifier: _notifier, spine: _event_bus, callback: _callback, channel: _channel}
       ) do
-    init_state = {1, config}
+    config = Map.put_new(config, :starting_event_number, @default_starting_number)
+    init_state = {config.starting_event_number, config}
+
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
   def handle_info(:subscribe, {_cursor, config}) do
-    {:ok, cursor} = config.spine.subscribe(config.channel)
+    {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
 
     :ok = config.notifier.subscribe()
 
