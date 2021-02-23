@@ -49,8 +49,10 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  def completed(repo, channel, cursor) do
+  def completed(repo, notifier, channel, cursor) do
     subscription = repo.get!(Schema.Subscription, channel)
+
+    notifier.broadcast({:completed, channel, cursor})
 
     if cursor >= subscription.cursor do
       subscription
@@ -77,10 +79,11 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  defmacro __using__(repo: repo) do
+  defmacro __using__(repo: repo, notifier: notifier) do
     quote do
       @behaviour Spine.BusDb
       @repo unquote(repo)
+      @notifier unquote(notifier)
       alias Spine.BusDb.Postgres
 
       def subscribe(channel, starting_event_number) do
@@ -96,7 +99,7 @@ defmodule Spine.BusDb.Postgres do
       end
 
       def completed(channel, cursor) do
-        Postgres.completed(@repo, channel, cursor)
+        Postgres.completed(@repo, @notifier, channel, cursor)
       end
     end
   end
