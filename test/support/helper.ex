@@ -5,6 +5,8 @@ defmodule Test.Support.Helper do
         unquote(repos)
         |> List.wrap()
         |> Enum.each(fn repo ->
+          start_supervised!(repo)
+
           :ok = Ecto.Adapters.SQL.Sandbox.checkout(repo)
 
           unless tags[:async] do

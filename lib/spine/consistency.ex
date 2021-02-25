@@ -36,30 +36,36 @@ defmodule Spine.Consistency do
     {:reply, config.notifier, config}
   end
 
-  def wait_for_event(event_number, timeout, server \\ @default_server_name) do
+  def wait_for_event(channels, event_number, timeout, server \\ @default_server_name) do
     notifier = GenServer.call(server, :get_notifier)
 
     notifier.subscribe()
 
-    consistency_result = do_wait(event_number, timeout)
+    consistency_result = do_wait(channels, event_number, timeout)
 
     consistency_result
   end
 
-  defp do_wait(event_number, timeout) do
+  defp do_wait(channels, event_number, timeout) do
     receive do
       {:listener_progress_update, subscriptions} ->
         subscriptions
+        |> Map.take(channels)
         |> Map.values()
+        |> raise_if_empty!()
         |> Enum.all?(&(&1 >= event_number))
         |> case do
           true -> :ok
-          false -> do_wait(event_number, timeout)
+          false -> do_wait(channels, event_number, timeout)
         end
     after
       timeout -> {:timeout, event_number}
     end
   end
+
+  defp raise_if_empty!([]), do: raise("Ensure channels that require strong consistency exist.")
+
+  defp raise_if_empty!(channels), do: channels
 
   defp schedule_work, do: Process.send_after(self(), :do_poll, @poll_time_ms)
 end

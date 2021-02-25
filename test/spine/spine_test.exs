@@ -25,6 +25,10 @@ defmodule SpineTest do
       def next_state(nil, event), do: event
       def next_state(current_state, event), do: current_state + event
     end
+
+    defmodule ListenerCallback do
+      def handle_event(_event, _meta), do: :ok
+    end
   end
 
   defmodule EventCatalog do
@@ -39,16 +43,22 @@ defmodule SpineTest do
       topic: "bus_progress_notifier"
   end
 
-  setup do
-    Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
-
-    :ok
-  end
-
   describe "Integration" do
     setup do
+      Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+
       Spine.Consistency.start_link(%{notifier: BusProgressNotifier, spine: MyApp})
       start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier})
+
+      start_supervised!(
+        {Spine.Listener,
+         %{
+           notifier: BusProgressNotifier,
+           spine: MyApp,
+           callback: MyApp.ListenerCallback,
+           channel: "some-channel"
+         }}
+      )
 
       :ok
     end
@@ -62,17 +72,17 @@ defmodule SpineTest do
     test "handling a wish that requires strong consistency" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
-      assert :ok = MyApp.handle(wish, consistency: :strong)
+      assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel"])
     end
 
     test "handling a wish that requires strong consistency times out" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
       assert {:timeout, event_number} =
-               MyApp.handle(wish, consistency: :strong, consistency_timeout: 0)
+               MyApp.handle(wish, strong_consistency: ["some-channel"], consistency_timeout: 0)
 
       assert is_integer(event_number)
-      assert :ok == MyApp.wait_for_consistency(event_number)
+      assert :ok == MyApp.wait_for_consistency(["some-channel"], event_number)
     end
 
     test "handling a wish, that is not allowed" do

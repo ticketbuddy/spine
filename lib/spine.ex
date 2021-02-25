@@ -75,9 +75,9 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
-      def wait_for_consistency(event_number, timeout \\ @default_consistency_timeout) do
+      def wait_for_consistency(channels, event_number, timeout \\ @default_consistency_timeout) do
         do_handle_consistency_guarantee(event_number,
-          consistency: :strong,
+          strong_consistency: channels,
           consistency_timeout: timeout
         )
       end
@@ -96,14 +96,14 @@ defmodule Spine do
       end
 
       defp do_handle_consistency_guarantee(event_number, opts) do
-        case Keyword.get(opts, :consistency, :eventual) do
-          :eventual ->
+        case Keyword.get(opts, :strong_consistency, []) do
+          [] ->
             :ok
 
-          :strong ->
+          channels ->
             timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
 
-            Spine.Consistency.wait_for_event(event_number, timeout)
+            Spine.Consistency.wait_for_event(channels, event_number, timeout)
         end
       end
     end
