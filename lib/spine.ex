@@ -8,6 +8,7 @@ defmodule Spine do
       require Logger
 
       @count_from 1
+      @default_consistency_timeout 5_000
 
       @event_store unquote(event_store)
       @bus unquote(bus)
@@ -62,11 +63,9 @@ defmodule Spine do
         )
 
         with {:ok, events} <- handler.execute(agg_state, wish),
-             res <- commit(List.wrap(events), cursor, opts) do
-          cond do
-            res in [:ok, {:ok, :idempotent}] -> :ok
-            true -> res
-          end
+             commited_result <- commit(List.wrap(events), cursor, opts),
+             :ok <- handle_consistency_guarantee(commited_result, opts) do
+          :ok
         end
       end
 
@@ -74,6 +73,31 @@ defmodule Spine do
         events = aggregate_events(aggregate_id)
 
         Spine.Aggregate.build_state(aggregate_id, events, handler)
+      end
+
+      defp handle_consistency_guarantee(commited_result, opts) do
+        case commited_result do
+          {:ok, :idempotent} ->
+            :ok
+
+          {:ok, event_number} when is_integer(event_number) ->
+            do_handle_consistency_guarantee(event_number, opts)
+
+          :error ->
+            :error
+        end
+      end
+
+      defp do_handle_consistency_guarantee(event_number, opts) do
+        case Keyword.get(opts, :consistency, :eventual) do
+          :eventual ->
+            :ok
+
+          :strong ->
+            timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
+
+            Spine.Consistency.wait_for_event(event_number, timeout)
+        end
       end
     end
   end

@@ -52,4 +52,86 @@ defmodule Spine.ConsistencyTest do
 
     assert_receive(:do_poll, 1_500)
   end
+
+  describe "wait_for_event/3" do
+    test "when waiting reaches timeout", %{config: config} do
+      event_number = 200
+
+      initial_subscriptions = %{
+        "one" => 200,
+        "two" => 199
+      }
+
+      strongly_consistent_subscriptions = %{
+        "one" => 200,
+        "two" => 200
+      }
+
+      BusDbMock
+      |> expect(:subscriptions, fn ->
+        initial_subscriptions
+      end)
+
+      ListenerNotifierMock
+      |> expect(:broadcast, fn {:listener_progress_update, ^initial_subscriptions} ->
+        :ok
+      end)
+
+      ListenerNotifierMock
+      |> expect(:subscribe, fn ->
+        :ok
+      end)
+
+      assert {:ok, _pid} = Consistency.start_link(config)
+
+      test_pid = self()
+
+      spawn(fn ->
+        :timer.sleep(800)
+        send(test_pid, {:listener_progress_update, strongly_consistent_subscriptions})
+      end)
+
+      assert :timeout == Spine.Consistency.wait_for_event(event_number, 600)
+    end
+
+    test "when subscriptions are strongly consistent", %{config: config} do
+      event_number = 200
+
+      initial_subscriptions = %{
+        "one" => 199,
+        "two" => 200
+      }
+
+      strongly_consistent_subscriptions = %{
+        "one" => 200,
+        "two" => 200
+      }
+
+      BusDbMock
+      |> expect(:subscriptions, fn ->
+        initial_subscriptions
+      end)
+
+      ListenerNotifierMock
+      |> expect(:broadcast, fn {:listener_progress_update, ^initial_subscriptions} ->
+        :ok
+      end)
+
+      ListenerNotifierMock
+      |> expect(:subscribe, fn ->
+        :ok
+      end)
+
+      assert {:ok, _pid} = Consistency.start_link(config)
+
+      test_pid = self()
+
+      spawn(fn ->
+        :timer.sleep(150)
+        send(test_pid, {:listener_progress_update, strongly_consistent_subscriptions})
+      end)
+
+      assert :ok == Spine.Consistency.wait_for_event(event_number, 600)
+    end
+  end
 end

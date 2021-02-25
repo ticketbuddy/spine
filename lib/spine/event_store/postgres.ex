@@ -15,13 +15,7 @@ defmodule Spine.EventStore.Postgres do
 
         notifier.broadcast(:process)
 
-        case Keyword.get(opts, :return, :none) do
-          :event_number ->
-            {:ok, Commit.latest_event_number(results)}
-
-          :none ->
-            :ok
-        end
+        {:ok, Commit.latest_event_number(results)}
 
       {:error, {:idempotent_check}, _changeset, _data} ->
         :telemetry.execute(

@@ -26,6 +26,7 @@ defmodule Spine.EventStore.Postgres.Commit do
     results
     |> Map.values()
     |> get_in([Access.all(), Access.key(:event_number)])
+    |> Enum.filter(&is_integer/1)
     |> Enum.max()
   end
 

@@ -18,14 +18,7 @@ defmodule Spine.EventStore.PostgresTest do
       event = %TestApp.Incremented{}
       cursor = {"aggregate-12345", 1}
 
-      assert :ok == PostgresTestDb.commit(event, cursor, [])
-    end
-
-    test "commits a single event, when event_number is to be returned" do
-      event = %TestApp.Incremented{}
-      cursor = {"aggregate-12345", 1}
-
-      assert {:ok, event_number} = PostgresTestDb.commit(event, cursor, return: :event_number)
+      assert {:ok, event_number} = PostgresTestDb.commit(event, cursor, [])
       assert is_integer(event_number)
     end
 
@@ -36,21 +29,15 @@ defmodule Spine.EventStore.PostgresTest do
       event = %TestApp.Incremented{}
       cursor = {"aggregate-12345", 1}
 
-      assert :ok == PostgresTestDb.commit(event, cursor, [])
+      assert {:ok, event_number} = PostgresTestDb.commit(event, cursor, [])
+      assert is_integer(event_number)
     end
 
     test "commits multiple events" do
       events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
       cursor = {"aggregate-12345", 1}
 
-      assert :ok == PostgresTestDb.commit(events, cursor, [])
-    end
-
-    test "commits multiple events, when event_number is to be returned" do
-      events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
-      cursor = {"aggregate-12345", 1}
-
-      assert {:ok, event_number} = PostgresTestDb.commit(events, cursor, return: :event_number)
+      assert {:ok, event_number} = PostgresTestDb.commit(events, cursor, [])
       assert is_integer(event_number)
     end
 
@@ -59,7 +46,8 @@ defmodule Spine.EventStore.PostgresTest do
       cursor_one = {"aggregate-12345", 1}
       cursor_two = {"aggregate-12345", 2}
 
-      assert :ok == PostgresTestDb.commit(events, cursor_one, [])
+      assert {:ok, event_number} = PostgresTestDb.commit(events, cursor_one, [])
+      assert is_integer(event_number)
       assert :error == PostgresTestDb.commit(events, cursor_two, [])
     end
 
@@ -68,7 +56,10 @@ defmodule Spine.EventStore.PostgresTest do
       cursor_one = {"aggregate-12345", 1}
       cursor_two = {"aggregate-12345", 2}
 
-      assert :ok == PostgresTestDb.commit(events, cursor_one, idempotent_key: "only-once-please")
+      assert {:ok, event_number} =
+               PostgresTestDb.commit(events, cursor_one, idempotent_key: "only-once-please")
+
+      assert is_integer(event_number)
 
       assert {:ok, :idempotent} ==
                PostgresTestDb.commit(events, cursor_two, idempotent_key: "only-once-please")

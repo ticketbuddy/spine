@@ -55,7 +55,22 @@ defmodule Spine.EventStore.Postgres.CommitTest do
   describe "latest_event_number/1" do
     setup do
       %{
-        results: %{
+        results_with_idempotency: %{
+          {:idempotent_check} => %Spine.EventStore.Postgres.Schema.Idempotent{
+            idempotent_id: "ed43af55-98f2-4f6b-86a9-946a8ab3934d",
+            key: "only-once-please"
+          },
+          {:event, 1} => %Spine.EventStore.Postgres.Schema.Event{
+            aggregate_id: "aggregate-12345",
+            aggregate_number: 1,
+            data: %TestApp.Incremented{count: 1},
+            event_id: "ffca880c-841c-4aa8-9ab3-8645d42d485a",
+            event_number: 113,
+            inserted_at: ~U[2021-02-25 12:17:53Z],
+            updated_at: ~U[2021-02-25 12:17:53Z]
+          }
+        },
+        results_no_idempotency: %{
           {:event, 1} => %Spine.EventStore.Postgres.Schema.Event{
             aggregate_id: "aggregate-12345",
             aggregate_number: 1,
@@ -78,8 +93,16 @@ defmodule Spine.EventStore.Postgres.CommitTest do
       }
     end
 
-    test "from a successful set of results, returns latest event number", %{results: results} do
+    test "from a successful set of results, returns latest event number", %{
+      results_no_idempotency: results
+    } do
       assert 220 == Commit.latest_event_number(results)
+    end
+
+    test "from a successful result which includes inserting idempotency key", %{
+      results_with_idempotency: results
+    } do
+      assert 113 == Commit.latest_event_number(results)
     end
   end
 end

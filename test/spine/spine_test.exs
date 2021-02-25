@@ -33,6 +33,12 @@ defmodule SpineTest do
     defwish(Inc, [:counter_id, amount: 1], to: MyApp.Handler)
   end
 
+  defmodule BusProgressNotifier do
+    use Spine.Listener.Notifier.PubSub,
+      pubsub: :bus_progress_notifier,
+      topic: "bus_progress_notifier"
+  end
+
   setup do
     Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
 
@@ -40,17 +46,29 @@ defmodule SpineTest do
   end
 
   describe "Integration" do
+    setup do
+      Spine.Consistency.start_link(%{notifier: BusProgressNotifier, spine: MyApp})
+      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier})
+
+      :ok
+    end
+
     test "handling a wish that is allowed" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
       assert :ok == MyApp.handle(wish)
     end
 
-    test "handling a wish that returns event_number" do
+    test "handling a wish that requires strong consistency" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
-      assert {:ok, event_number} = MyApp.handle(wish, return: :event_number)
-      assert is_integer(event_number)
+      assert :ok = MyApp.handle(wish, consistency: :strong)
+    end
+
+    test "handling a wish that requires strong consistency times out" do
+      wish = %EventCatalog.Inc{counter_id: "counter-1"}
+
+      assert :timeout = MyApp.handle(wish, consistency: :strong, consistency_timeout: 0)
     end
 
     test "handling a wish, that is not allowed" do
