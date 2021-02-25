@@ -77,10 +77,7 @@ defmodule Spine.ConsistencyTest do
         :ok
       end)
 
-      ListenerNotifierMock
-      |> expect(:subscribe, fn ->
-        :ok
-      end)
+      expect(ListenerNotifierMock, :subscribe, fn -> :ok end)
 
       assert {:ok, _pid} = Consistency.start_link(config)
 
@@ -117,10 +114,7 @@ defmodule Spine.ConsistencyTest do
         :ok
       end)
 
-      ListenerNotifierMock
-      |> expect(:subscribe, fn ->
-        :ok
-      end)
+      expect(ListenerNotifierMock, :subscribe, fn -> :ok end)
 
       assert {:ok, _pid} = Consistency.start_link(config)
 

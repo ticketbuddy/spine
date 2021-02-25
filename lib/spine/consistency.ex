@@ -45,8 +45,6 @@ defmodule Spine.Consistency do
 
     consistency_result = do_wait(event_number, timeout)
 
-    # notifier.unsubscribe()
-
     consistency_result
   end
 
