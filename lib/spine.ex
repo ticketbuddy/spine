@@ -75,6 +75,13 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
+      def wait_for_consistency(event_number, timeout \\ @default_consistency_timeout) do
+        do_handle_consistency_guarantee(event_number,
+          consistency: :strong,
+          consistency_timeout: timeout
+        )
+      end
+
       defp handle_consistency_guarantee(commited_result, opts) do
         case commited_result do
           {:ok, :idempotent} ->

@@ -68,7 +68,11 @@ defmodule SpineTest do
     test "handling a wish that requires strong consistency times out" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
-      assert :timeout = MyApp.handle(wish, consistency: :strong, consistency_timeout: 0)
+      assert {:timeout, event_number} =
+               MyApp.handle(wish, consistency: :strong, consistency_timeout: 0)
+
+      assert is_integer(event_number)
+      assert :ok == MyApp.wait_for_consistency(event_number)
     end
 
     test "handling a wish, that is not allowed" do

@@ -88,7 +88,7 @@ defmodule Spine.ConsistencyTest do
         send(test_pid, {:listener_progress_update, strongly_consistent_subscriptions})
       end)
 
-      assert :timeout == Spine.Consistency.wait_for_event(event_number, 600)
+      assert {:timeout, event_number} == Spine.Consistency.wait_for_event(event_number, 600)
     end
 
     test "when subscriptions are strongly consistent", %{config: config} do

@@ -36,8 +36,6 @@ defmodule Spine.Consistency do
     {:reply, config.notifier, config}
   end
 
-  # Client
-
   def wait_for_event(event_number, timeout, server \\ @default_server_name) do
     notifier = GenServer.call(server, :get_notifier)
 
@@ -59,7 +57,7 @@ defmodule Spine.Consistency do
           false -> do_wait(event_number, timeout)
         end
     after
-      timeout -> :timeout
+      timeout -> {:timeout, event_number}
     end
   end
 
