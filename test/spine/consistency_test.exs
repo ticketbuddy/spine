@@ -54,6 +54,33 @@ defmodule Spine.ConsistencyTest do
   end
 
   describe "wait_for_event/3" do
+    test "raises when a strongly consistent channel does not exist", %{config: config} do
+      event_number = 200
+
+      strongly_consistent_channels = ["I_DO_NOT_EXIST"]
+
+      subscriptions = %{
+        "one" => 200,
+        "two" => 199,
+        "three" => 150
+      }
+
+      BusDbMock
+      |> expect(:subscriptions, fn ->
+        subscriptions
+      end)
+
+      stub(ListenerNotifierMock, :subscribe, fn -> :ok end)
+      stub(ListenerNotifierMock, :broadcast, fn _subscriptions -> :ok end)
+
+      assert {:ok, _pid} = Consistency.start_link(config)
+
+      assert_raise RuntimeError, fn ->
+        send(self(), {:listener_progress_update, subscriptions})
+        Spine.Consistency.wait_for_event(strongly_consistent_channels, event_number, 1_000)
+      end
+    end
+
     test "when waiting reaches timeout", %{config: config} do
       event_number = 200
 
