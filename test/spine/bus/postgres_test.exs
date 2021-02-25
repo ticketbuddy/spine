@@ -6,7 +6,7 @@ defmodule Spine.BusDb.PostgresTest do
   @start_listening_from 1
 
   defmodule PostgresTestDb do
-    use Spine.BusDb.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+    use Spine.BusDb.Postgres, repo: Test.Support.Repo
   end
 
   setup do
@@ -44,19 +44,6 @@ defmodule Spine.BusDb.PostgresTest do
   end
 
   describe "when an event is completed" do
-    test "notifies topic of a newly completed event" do
-      ListenerNotifierMock
-      |> expect(:broadcast, 2, fn
-        {:completed, "channel-one", 1} -> :ok
-        {:completed, "channel-one", 2} -> :ok
-      end)
-
-      {:ok, 1} = PostgresTestDb.subscribe("channel-one", @start_listening_from)
-
-      :ok = PostgresTestDb.completed("channel-one", 1)
-      :ok = PostgresTestDb.completed("channel-one", 2)
-    end
-
     test "increments cursor when :completed message received for correct cursor" do
       PostgresTestDb.subscribe("channel-one", @start_listening_from)
 

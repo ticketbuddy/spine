@@ -9,7 +9,7 @@ defmodule Spine.ConsistencyTest do
     end
 
     defmodule MyEventBus do
-      use Spine.BusDb.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+      use Spine.BusDb.Postgres, repo: Test.Support.Repo
     end
 
     use Spine, event_store: EventStoreMock, bus: BusDbMock
