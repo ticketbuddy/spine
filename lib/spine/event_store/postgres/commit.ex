@@ -16,9 +16,17 @@ defmodule Spine.EventStore.Postgres.Commit do
           aggregate_number: event_key
         })
 
-      Multi.insert(multi, {:event, event_key}, changeset)
+      Multi.insert(multi, {:event, event_key}, changeset, returning: [:event_number])
     end)
     |> ensure_idempotency(idempotent_key)
+  end
+
+  @spec latest_event_number(Map.t()) :: Integer.t()
+  def latest_event_number(results) do
+    results
+    |> Map.values()
+    |> get_in([Access.all(), Access.key(:event_number)])
+    |> Enum.max()
   end
 
   defp ensure_idempotency(multi, nil), do: multi

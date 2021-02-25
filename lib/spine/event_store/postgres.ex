@@ -8,14 +8,20 @@ defmodule Spine.EventStore.Postgres do
     Commit.commit(events, cursor, opts)
     |> repo.transaction()
     |> case do
-      {:ok, _results} ->
+      {:ok, results} ->
         :telemetry.execute([:spine, :event_store, :commit, :ok], %{count: Enum.count(events)}, %{
           cursor: cursor
         })
 
         notifier.broadcast(:process)
 
-        :ok
+        case Keyword.get(opts, :return, :none) do
+          :event_number ->
+            {:ok, Commit.latest_event_number(results)}
+
+          :none ->
+            :ok
+        end
 
       {:error, {:idempotent_check}, _changeset, _data} ->
         :telemetry.execute(

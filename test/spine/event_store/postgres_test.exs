@@ -21,6 +21,14 @@ defmodule Spine.EventStore.PostgresTest do
       assert :ok == PostgresTestDb.commit(event, cursor, [])
     end
 
+    test "commits a single event, when event_number is to be returned" do
+      event = %TestApp.Incremented{}
+      cursor = {"aggregate-12345", 1}
+
+      assert {:ok, event_number} = PostgresTestDb.commit(event, cursor, return: :event_number)
+      assert is_integer(event_number)
+    end
+
     test "broadcasts message after a commit has been processed" do
       ListenerNotifierMock
       |> Mox.expect(:broadcast, fn :process -> :ok end)
@@ -31,11 +39,19 @@ defmodule Spine.EventStore.PostgresTest do
       assert :ok == PostgresTestDb.commit(event, cursor, [])
     end
 
-    test "commits multiple single events" do
+    test "commits multiple events" do
       events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
       cursor = {"aggregate-12345", 1}
 
       assert :ok == PostgresTestDb.commit(events, cursor, [])
+    end
+
+    test "commits multiple events, when event_number is to be returned" do
+      events = [%TestApp.Incremented{}, %TestApp.Incremented{}]
+      cursor = {"aggregate-12345", 1}
+
+      assert {:ok, event_number} = PostgresTestDb.commit(events, cursor, return: :event_number)
+      assert is_integer(event_number)
     end
 
     test "when cursor points to an already written event" do

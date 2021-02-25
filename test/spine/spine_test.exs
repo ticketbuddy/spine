@@ -46,6 +46,13 @@ defmodule SpineTest do
       assert :ok == MyApp.handle(wish)
     end
 
+    test "handling a wish that returns event_number" do
+      wish = %EventCatalog.Inc{counter_id: "counter-1"}
+
+      assert {:ok, event_number} = MyApp.handle(wish, return: :event_number)
+      assert is_integer(event_number)
+    end
+
     test "handling a wish, that is not allowed" do
       wish = %EventCatalog.Inc{counter_id: "counter-1", amount: -1}
 
