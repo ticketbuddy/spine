@@ -59,13 +59,17 @@ defmodule Spine.ConsistencyTest do
 
       initial_subscriptions = %{
         "one" => 200,
-        "two" => 199
+        "two" => 199,
+        "three" => 150
       }
 
       strongly_consistent_subscriptions = %{
         "one" => 200,
-        "two" => 200
+        "two" => 200,
+        "three" => 150
       }
+
+      strongly_consistent_channels = ["one", "two"]
 
       BusDbMock
       |> expect(:subscriptions, fn ->
@@ -88,7 +92,8 @@ defmodule Spine.ConsistencyTest do
         send(test_pid, {:listener_progress_update, strongly_consistent_subscriptions})
       end)
 
-      assert {:timeout, event_number} == Spine.Consistency.wait_for_event(event_number, 600)
+      assert {:timeout, event_number} ==
+               Spine.Consistency.wait_for_event(strongly_consistent_channels, event_number, 600)
     end
 
     test "when subscriptions are strongly consistent", %{config: config} do
@@ -96,13 +101,17 @@ defmodule Spine.ConsistencyTest do
 
       initial_subscriptions = %{
         "one" => 199,
-        "two" => 200
+        "two" => 200,
+        "three" => 150
       }
 
       strongly_consistent_subscriptions = %{
         "one" => 200,
-        "two" => 200
+        "two" => 200,
+        "three" => 150
       }
+
+      strongly_consistent_channels = ["one", "two"]
 
       BusDbMock
       |> expect(:subscriptions, fn ->
@@ -125,7 +134,8 @@ defmodule Spine.ConsistencyTest do
         send(test_pid, {:listener_progress_update, strongly_consistent_subscriptions})
       end)
 
-      assert :ok == Spine.Consistency.wait_for_event(event_number, 600)
+      assert :ok ==
+               Spine.Consistency.wait_for_event(strongly_consistent_channels, event_number, 600)
     end
   end
 end
