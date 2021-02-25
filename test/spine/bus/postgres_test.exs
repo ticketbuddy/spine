@@ -1,11 +1,19 @@
 defmodule Spine.BusDb.PostgresTest do
   use ExUnit.Case
+  use Test.Support.Mox
   use Test.Support.Helper, repo: Test.Support.Repo
 
   @start_listening_from 1
 
   defmodule PostgresTestDb do
     use Spine.BusDb.Postgres, repo: Test.Support.Repo
+  end
+
+  setup do
+    ListenerNotifierMock
+    |> stub(:broadcast, fn {:completed, _channel, _event} -> :ok end)
+
+    :ok
   end
 
   test "subscribes listener to a channel" do
