@@ -127,14 +127,14 @@ defmodule Spine.ConsistencyTest do
       event_number = 200
 
       initial_subscriptions = %{
-        "one" => 199,
-        "two" => 200,
+        "one" => 200,
+        "two" => 201,
         "three" => 150
       }
 
       strongly_consistent_subscriptions = %{
-        "one" => 200,
-        "two" => 200,
+        "one" => 201,
+        "two" => 201,
         "three" => 150
       }
 
