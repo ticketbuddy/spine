@@ -49,7 +49,9 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  def completed(repo, channel, cursor) do
+  def completed(repo, notifier, channel, cursor) do
+    # TODO should be done in a transaction?
+
     subscription = repo.get!(Schema.Subscription, channel)
 
     if cursor >= subscription.cursor do
@@ -62,6 +64,16 @@ defmodule Spine.BusDb.Postgres do
             channel: channel,
             cursor: cursor
           })
+
+          notifier.broadcast({:listener_completed_event, channel, cursor})
+          # then receive by doing:
+          """
+          receive do
+            {:listener_completed_event, ^channel, ^event_number} -> :ok
+          after
+            timeout -> {:timeout, event_number}
+          end
+          """
 
           :ok
       end
@@ -77,10 +89,11 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  defmacro __using__(repo: repo) do
+  defmacro __using__(repo: repo, notifier: notifier) do
     quote do
       @behaviour Spine.BusDb
       @repo unquote(repo)
+      @notifier unquote(notifier)
       alias Spine.BusDb.Postgres
 
       def subscribe(channel, starting_event_number) do
@@ -96,8 +109,10 @@ defmodule Spine.BusDb.Postgres do
       end
 
       def completed(channel, cursor) do
-        Postgres.completed(@repo, channel, cursor)
+        Postgres.completed(@repo, @notifier, channel, cursor)
       end
+
+      def event_completed_notifier, do: @notifier
     end
   end
 end

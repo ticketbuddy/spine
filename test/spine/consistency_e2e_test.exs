@@ -6,13 +6,19 @@ defmodule Spine.ConsistencyE2eTest do
 
   @channel "a-channel-to-be-strongly-consistent-with"
 
+  defmodule BusProgressNotifier do
+    use Spine.Listener.Notifier.PubSub,
+      pubsub: :bus_progress_notifier_strong_consistent,
+      topic: "bus_progress_notifier_strong_consistent"
+  end
+
   defmodule MyStronglyConsistentApp do
     defmodule MyEventStore do
       use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
     end
 
     defmodule MyEventBus do
-      use Spine.BusDb.Postgres, repo: Test.Support.Repo
+      use Spine.BusDb.Postgres, repo: Test.Support.Repo, notifier: BusProgressNotifier
     end
 
     use Spine, event_store: MyEventStore, bus: MyEventBus
@@ -42,20 +48,9 @@ defmodule Spine.ConsistencyE2eTest do
     defwish(Sleep, [:timer, :reply_pid, time_ms: 1], to: MyStronglyConsistentApp.Handler)
   end
 
-  defmodule BusProgressNotifier do
-    use Spine.Listener.Notifier.PubSub,
-      pubsub: :bus_progress_notifier_strong_consistent,
-      topic: "bus_progress_notifier_strong_consistent"
-  end
-
   describe "Consistency integration" do
     setup do
       Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
-
-      Spine.Consistency.start_link(%{
-        notifier: BusProgressNotifier,
-        spine: MyStronglyConsistentApp
-      })
 
       start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier_strong_consistent})
 
