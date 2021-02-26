@@ -48,7 +48,7 @@ defmodule Spine.StrongConsistencyTest do
       topic: "bus_progress_notifier_strong_consistent"
   end
 
-  describe "Strong consistency integration" do
+  describe "Consistency integration" do
     setup do
       Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
 
@@ -72,8 +72,22 @@ defmodule Spine.StrongConsistencyTest do
       :ok
     end
 
-    test "receives message from listener before result is returned" do
-      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 3_000, reply_pid: self()}
+    test "eventual consistency, receives result before listener has completed" do
+      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
+
+      result = MyStronglyConsistentApp.handle(wish)
+      result_received_at = DateTime.utc_now()
+
+      listner_completed_at =
+        receive do
+          {:strong_consistency_handle_event, completed_at} -> completed_at
+        end
+
+      assert :lt == DateTime.compare(result_received_at, listner_completed_at)
+    end
+
+    test "strong consistency, receives result after listener has completed" do
+      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
 
       result = MyStronglyConsistentApp.handle(wish, strong_consistency: [@channel])
       result_received_at = DateTime.utc_now()
