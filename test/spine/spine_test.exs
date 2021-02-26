@@ -4,6 +4,12 @@ defmodule SpineTest do
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
+  defmodule EventCommittedNotifier do
+    use Spine.Listener.Notifier.PubSub,
+      pubsub: :event_committed_notifier,
+      topic: "event_committed_notifier"
+  end
+
   defmodule BusProgressNotifier do
     use Spine.Listener.Notifier.PubSub,
       pubsub: :bus_progress_notifier,
@@ -12,7 +18,7 @@ defmodule SpineTest do
 
   defmodule MyApp do
     defmodule MyEventStore do
-      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: EventCommittedNotifier
     end
 
     defmodule MyEventBus do
@@ -45,17 +51,26 @@ defmodule SpineTest do
 
   describe "Integration" do
     setup do
-      Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+      Mox.stub(ListenerNotifierMock, :broadcast, fn {:process, _aggregate_id} -> :ok end)
 
-      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier})
+      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier}, id: :bus_progress_notifier)
+
+      start_supervised!({Phoenix.PubSub, name: :event_committed_notifier},
+        id: :event_committed_notifier
+      )
+
+      start_supervised!(
+        {DynamicSupervisor, strategy: :one_for_one, name: MyApp.ListenerDynamicSupervisor}
+      )
 
       start_supervised!(
         {Spine.Listener,
          %{
-           notifier: BusProgressNotifier,
+           notifier: EventCommittedNotifier,
            spine: MyApp,
            callback: MyApp.ListenerCallback,
-           channel: "some-channel"
+           channel: "some-channel",
+           listener_supervisor: MyApp.ListenerDynamicSupervisor
          }}
       )
 
@@ -71,14 +86,17 @@ defmodule SpineTest do
     test "handling a wish that requires strong consistency" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
-      assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel"])
+      assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel-default"])
     end
 
     test "handling a wish that requires strong consistency times out" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
       assert {:timeout, event_number} =
-               MyApp.handle(wish, strong_consistency: ["some-channel"], consistency_timeout: 0)
+               MyApp.handle(wish,
+                 strong_consistency: ["some-channel-default"],
+                 consistency_timeout: 0
+               )
 
       assert is_integer(event_number)
     end

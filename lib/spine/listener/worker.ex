@@ -25,8 +25,6 @@ defmodule Spine.Listener.Worker do
   def handle_info(:subscribe_to_bus, {_cursor, config}) do
     {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
 
-    schedule_work()
-
     {:noreply, {cursor, config}}
   end
 

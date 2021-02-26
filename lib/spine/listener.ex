@@ -8,12 +8,11 @@ defmodule Spine.Listener do
   """
 
   use GenServer
+  alias __MODULE__
 
   @default_starting_number 1
 
-  def init(state) do
-    {_, config} = state
-
+  def init(config) do
     send(self(), :subscribe_to_event_store)
 
     {:ok, config}
@@ -21,7 +20,7 @@ defmodule Spine.Listener do
 
   def start_link(
         config = %{
-          listener_supervisor: listener_sup,
+          listener_supervisor: _listener_sup,
           notifier: _notifier,
           spine: _event_bus,
           callback: _callback,
@@ -49,13 +48,12 @@ defmodule Spine.Listener do
     # if listener per aggregate:
     # <channel name>-<aggregate id>
     # if only one listener:
-    # <channel name>
+    # <channel name>-default
 
     listener_options = %{
       # channel: "#{config.channel}-#{aggregate_id}"
-      channel: "#{config.channel}",
+      channel: "#{config.channel}-default",
       starting_event_number: config.starting_event_number,
-      notifier: config.notifier,
       spine: config.spine,
       callback: config.callback
     }
@@ -66,10 +64,19 @@ defmodule Spine.Listener do
       restart: :temporary
     }
 
-    DynamicSupervisor.start_child(config.listener_sup, listener_child_spec)
+    {:ok, pid} = find_or_start_worker(config.listener_supervisor, listener_child_spec)
+
+    send(pid, :process)
 
     {:noreply, config}
   end
 
-  def handle_info(_msg, state), do: {:noreply, state}
+  def handle_info(msg, state), do: {:noreply, state}
+
+  defp find_or_start_worker(worker_supervisor, child_spec) do
+    case DynamicSupervisor.start_child(worker_supervisor, child_spec) do
+      {:ok, pid} -> {:ok, pid}
+      {:error, {:already_started, pid}} -> {:ok, pid}
+    end
+  end
 end

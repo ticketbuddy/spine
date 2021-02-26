@@ -19,17 +19,20 @@ defmodule Spine.Listener.NotifierTest do
 
     {:ok, _pid} = Supervisor.start_link(children, opts)
 
+    start_supervised!(
+      {DynamicSupervisor, strategy: :one_for_one, name: MyApp.ListenerDynamicSupervisor}
+    )
+
     BusDbMock
-    |> expect(:subscribe, fn @listener_channel, 1 -> {:ok, 1} end)
+    |> expect(:subscribe, fn "#{@listener_channel}-default", 1 -> {:ok, 1} end)
 
     config = %{
       channel: @listener_channel,
       callback: nil,
       spine: MyApp,
-      notifier: MyPubSub
+      notifier: MyPubSub,
+      listener_supervisor: MyApp.ListenerDynamicSupervisor
     }
-
-    expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
 
     assert {:ok, pid} = Spine.Listener.start_link(config)
     assert is_pid(pid)
@@ -41,7 +44,7 @@ defmodule Spine.Listener.NotifierTest do
     test "notifies listener of new events" do
       expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
 
-      MyPubSub.broadcast(:process)
+      MyPubSub.broadcast({:process, "aggregate-one"})
 
       :timer.sleep(200)
     end

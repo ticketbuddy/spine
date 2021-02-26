@@ -65,7 +65,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
     assert_receive(:subscribe_to_bus)
   end
 
-  test "handle_info/1 catches :subscribe message, and starts process work" do
+  test "handle_info/1 catches :subscribe message" do
     start_listening_from_event = 5
 
     BusDbMock
@@ -84,8 +84,6 @@ defmodule Spine.Listener.Worker.WorkerTest do
 
     assert {:noreply, {start_listening_from_event, config}} ==
              Spine.Listener.Worker.handle_info(:subscribe_to_bus, existing_state)
-
-    assert_receive(:process)
   end
 
   describe "handle_info/1 :process message" do
