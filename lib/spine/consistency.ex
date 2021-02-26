@@ -5,6 +5,7 @@ defmodule Spine.Consistency do
   """
 
   use GenServer
+  alias Spine.Consistency.Utils
 
   @poll_time_ms 1_000
   @default_server_name __MODULE__
@@ -52,11 +53,7 @@ defmodule Spine.Consistency do
   defp do_wait(channels, event_number, timeout) do
     receive do
       {:listener_progress_update, subscriptions} ->
-        subscriptions
-        |> Map.take(channels)
-        |> Map.values()
-        |> raise_if_empty!()
-        |> Enum.all?(&(&1 >= event_number))
+        Utils.is_consistent?(subscriptions, channels, event_number)
         |> case do
           true -> :ok
           false -> do_wait(channels, event_number, timeout)
@@ -65,10 +62,6 @@ defmodule Spine.Consistency do
       timeout -> {:timeout, event_number}
     end
   end
-
-  defp raise_if_empty!([]), do: raise("Ensure channels that require strong consistency exist.")
-
-  defp raise_if_empty!(channels), do: channels
 
   defp schedule_work, do: Process.send_after(self(), :do_poll, @poll_time_ms)
 end
