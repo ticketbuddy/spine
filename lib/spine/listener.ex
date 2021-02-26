@@ -1,4 +1,12 @@
 defmodule Spine.Listener do
+  @moduledoc """
+  Is started manually, and receives a notification
+  when there is a new event to process.
+
+  Using the config, will dynamically find or start the Listener.Worker
+  GenServer, and set it processing a given channel.
+  """
+
   use GenServer
 
   @default_starting_number 1
@@ -6,95 +14,62 @@ defmodule Spine.Listener do
   def init(state) do
     {_, config} = state
 
-    send(self(), :subscribe)
+    send(self(), :subscribe_to_event_store)
 
-    {:ok, {nil, config}}
+    {:ok, config}
   end
 
   def start_link(
-        config = %{notifier: _notifier, spine: _event_bus, callback: _callback, channel: _channel}
+        config = %{
+          listener_supervisor: listener_sup,
+          notifier: _notifier,
+          spine: _event_bus,
+          callback: _callback,
+          channel: _channel
+        }
       ) do
     config = Map.put_new(config, :starting_event_number, @default_starting_number)
-    init_state = {config.starting_event_number, config}
+    init_state = config
 
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
-  def handle_info(:subscribe, {_cursor, config}) do
-    {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
-
+  def handle_info(:subscribe_to_event_store, config) do
     :ok = config.notifier.subscribe()
 
-    schedule_work()
-
-    {:noreply, {cursor, config}}
+    {:noreply, config}
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; spine, notifier, callback and a channel."
+    raise "Listener must be started with; a dynamic listener supervisor, spine, notifier, callback and a channel."
   end
 
-  def handle_info(:process, state) do
-    {cursor, config} = state
+  def handle_info({:process, aggregate_id}, config) do
+    # TODO
+    # if listener per aggregate:
+    # <channel name>-<aggregate id>
+    # if only one listener:
+    # <channel name>
 
-    cursor =
-      case config.spine.next_event(cursor) do
-        {:ok, :no_next_event} ->
-          :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
-            cursor: cursor,
-            callback: config.callback
-          })
+    listener_options = %{
+      # channel: "#{config.channel}-#{aggregate_id}"
+      channel: "#{config.channel}",
+      starting_event_number: config.starting_event_number,
+      notifier: config.notifier,
+      spine: config.spine,
+      callback: config.callback
+    }
 
-          cursor
+    listener_child_spec = %{
+      id: {Listener.Worker, listener_options.channel},
+      start: {Listener.Worker, :start_link, [listener_options]},
+      restart: :temporary
+    }
 
-        {:ok, event, event_meta = %{event_number: cursor}} ->
-          :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
-            cursor: cursor,
-            callback: config.callback,
-            event: event
-          })
+    DynamicSupervisor.start_child(config.listener_sup, listener_child_spec)
 
-          cursor = handle_event(event, event_meta, config)
-
-          schedule_work()
-
-          cursor
-      end
-
-    {:noreply, {cursor, config}}
+    {:noreply, config}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-  def schedule_work do
-    send(self(), :process)
-  end
-
-  defp handle_event(event, event_meta = %{event_number: cursor}, config) do
-    meta = %{
-      channel: config.channel,
-      cursor: cursor,
-      occured_at: event_meta.inserted_at
-    }
-
-    case config.callback.handle_event(event, meta) do
-      :ok ->
-        :telemetry.execute([:spine, :listener, :handle_event, :ok], %{count: 1}, %{
-          callback: config.callback,
-          event: event
-        })
-
-        config.spine.completed(config.channel, cursor)
-        cursor + 1
-
-      other ->
-        :telemetry.execute([:spine, :listener, :handle_event, :error], %{count: 1}, %{
-          error: other,
-          callback: config.callback,
-          event: event
-        })
-
-        cursor
-    end
-  end
 end
