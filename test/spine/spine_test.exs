@@ -4,13 +4,19 @@ defmodule SpineTest do
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
+  defmodule BusProgressNotifier do
+    use Spine.Listener.Notifier.PubSub,
+      pubsub: :bus_progress_notifier,
+      topic: "bus_progress_notifier"
+  end
+
   defmodule MyApp do
     defmodule MyEventStore do
       use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
     end
 
     defmodule MyEventBus do
-      use Spine.BusDb.Postgres, repo: Test.Support.Repo
+      use Spine.BusDb.Postgres, repo: Test.Support.Repo, notifier: BusProgressNotifier
     end
 
     use Spine, event_store: MyEventStore, bus: MyEventBus
@@ -37,17 +43,10 @@ defmodule SpineTest do
     defwish(Inc, [:counter_id, amount: 1], to: MyApp.Handler)
   end
 
-  defmodule BusProgressNotifier do
-    use Spine.Listener.Notifier.PubSub,
-      pubsub: :bus_progress_notifier,
-      topic: "bus_progress_notifier"
-  end
-
   describe "Integration" do
     setup do
       Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
 
-      Spine.Consistency.start_link(%{notifier: BusProgressNotifier, spine: MyApp})
       start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier})
 
       start_supervised!(
@@ -82,7 +81,6 @@ defmodule SpineTest do
                MyApp.handle(wish, strong_consistency: ["some-channel"], consistency_timeout: 0)
 
       assert is_integer(event_number)
-      assert :ok == MyApp.wait_for_consistency(["some-channel"], event_number)
     end
 
     test "handling a wish, that is not allowed" do
