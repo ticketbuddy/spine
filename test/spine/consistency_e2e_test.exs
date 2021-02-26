@@ -78,12 +78,13 @@ defmodule Spine.ConsistencyE2eTest do
       result = MyStronglyConsistentApp.handle(wish)
       result_received_at = DateTime.utc_now()
 
-      listner_completed_at =
+      listener_completed_at =
         receive do
           {:strong_consistency_handle_event, completed_at} -> completed_at
         end
 
-      assert :lt == DateTime.compare(result_received_at, listner_completed_at)
+      assert :ok == result
+      assert :lt == DateTime.compare(result_received_at, listener_completed_at)
     end
 
     test "strong consistency, receives result after listener has completed" do
@@ -92,12 +93,34 @@ defmodule Spine.ConsistencyE2eTest do
       result = MyStronglyConsistentApp.handle(wish, strong_consistency: [@channel])
       result_received_at = DateTime.utc_now()
 
-      listner_completed_at =
+      listener_completed_at =
         receive do
           {:strong_consistency_handle_event, completed_at} -> completed_at
         end
 
-      assert :gt == DateTime.compare(result_received_at, listner_completed_at)
+      assert :ok == result
+      assert :gt == DateTime.compare(result_received_at, listener_completed_at)
+    end
+
+    test "strong consistency, when listener handler times out" do
+      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
+
+      result =
+        MyStronglyConsistentApp.handle(wish,
+          strong_consistency: [@channel],
+          consistency_timeout: 500
+        )
+
+      result_received_at = DateTime.utc_now()
+
+      listener_completed_at =
+        receive do
+          {:strong_consistency_handle_event, completed_at} -> completed_at
+        end
+
+      assert {:timeout, event_number} = result
+      assert is_integer(event_number)
+      assert :lt == DateTime.compare(result_received_at, listener_completed_at)
     end
   end
 end
