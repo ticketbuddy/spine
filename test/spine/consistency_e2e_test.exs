@@ -1,4 +1,4 @@
-defmodule Spine.StrongConsistencyTest do
+defmodule Spine.ConsistencyE2eTest do
   use ExUnit.Case
   use Test.Support.Mox
 
