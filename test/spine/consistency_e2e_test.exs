@@ -6,6 +6,12 @@ defmodule Spine.ConsistencyE2eTest do
 
   @channel "a-channel-to-be-strongly-consistent-with"
 
+  defmodule EventCommittedNotifier do
+    use Spine.Listener.Notifier.PubSub,
+      pubsub: :event_committed_notifier_strong_consistency,
+      topic: "event_committed_notifier_strong_consistency"
+  end
+
   defmodule BusProgressNotifier do
     use Spine.Listener.Notifier.PubSub,
       pubsub: :bus_progress_notifier_strong_consistent,
@@ -14,7 +20,7 @@ defmodule Spine.ConsistencyE2eTest do
 
   defmodule MyStronglyConsistentApp do
     defmodule MyEventStore do
-      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: EventCommittedNotifier
     end
 
     defmodule MyEventBus do
@@ -50,14 +56,24 @@ defmodule Spine.ConsistencyE2eTest do
 
   describe "Consistency integration" do
     setup do
-      Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier_strong_consistent},
+        id: :bus_progress_notifier_strong_consistent
+      )
 
-      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier_strong_consistent})
+      start_supervised!({Phoenix.PubSub, name: :event_committed_notifier_strong_consistency},
+        id: :event_committed_notifier_strong_consistency
+      )
+
+      start_supervised!(
+        {DynamicSupervisor,
+         strategy: :one_for_one, name: MyStronglyConsistentApp.ListenerDynamicSupervisor}
+      )
 
       start_supervised!(
         {Spine.Listener,
          %{
-           notifier: BusProgressNotifier,
+           listener_supervisor: MyStronglyConsistentApp.ListenerDynamicSupervisor,
+           notifier: EventCommittedNotifier,
            spine: MyStronglyConsistentApp,
            callback: MyStronglyConsistentApp.ListenerCallback,
            channel: @channel
@@ -85,7 +101,7 @@ defmodule Spine.ConsistencyE2eTest do
     test "strong consistency, receives result after listener has completed" do
       wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
 
-      result = MyStronglyConsistentApp.handle(wish, strong_consistency: [@channel])
+      result = MyStronglyConsistentApp.handle(wish, strong_consistency: ["#{@channel}-default"])
       result_received_at = DateTime.utc_now()
 
       listener_completed_at =
@@ -102,7 +118,7 @@ defmodule Spine.ConsistencyE2eTest do
 
       result =
         MyStronglyConsistentApp.handle(wish,
-          strong_consistency: [@channel],
+          strong_consistency: ["#{@channel}-default"],
           consistency_timeout: 500
         )
 
