@@ -32,6 +32,9 @@ defmodule Spine.Consistency do
   end
 
   @impl true
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  @impl true
   def handle_call(:get_notifier, _from, config) do
     {:reply, config.notifier, config}
   end

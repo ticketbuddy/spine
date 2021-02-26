@@ -177,4 +177,11 @@ defmodule Spine.ListenerTest do
       assert_receive(:process)
     end
   end
+
+  test "catches stray info messages" do
+    message = :anything
+    state = :shrug
+
+    assert {:noreply, state} == Spine.Listener.handle_info(message, state)
+  end
 end

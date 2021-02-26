@@ -165,4 +165,11 @@ defmodule Spine.ConsistencyTest do
                Spine.Consistency.wait_for_event(strongly_consistent_channels, event_number, 600)
     end
   end
+
+  test "catches stray info messages" do
+    message = :anything
+    state = :shrug
+
+    assert {:noreply, state} == Spine.Listener.handle_info(message, state)
+  end
 end

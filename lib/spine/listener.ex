@@ -1,6 +1,5 @@
 defmodule Spine.Listener do
   use GenServer
-  import Logger
 
   @default_starting_number 1
 
@@ -64,6 +63,8 @@ defmodule Spine.Listener do
 
     {:noreply, {cursor, config}}
   end
+
+  def handle_info(_msg, state), do: {:noreply, state}
 
   def schedule_work do
     send(self(), :process)
