@@ -37,6 +37,9 @@ defmodule Spine.ConsistencyE2eTest do
     end
 
     defmodule ListenerCallback do
+      use Spine.Listener.Callback, channel: "a-channel-to-be-strongly-consistent-with"
+
+      @impl true
       def handle_event(%{time: sleep_for, reply_pid: pid}, _meta) do
         :timer.sleep(sleep_for)
         send(pid, {:strong_consistency_handle_event, DateTime.utc_now()})
@@ -44,6 +47,7 @@ defmodule Spine.ConsistencyE2eTest do
         :ok
       end
 
+      @impl true
       def handle_event(_event, _meta), do: :ok
     end
   end
@@ -101,7 +105,11 @@ defmodule Spine.ConsistencyE2eTest do
     test "strong consistency, receives result after listener has completed" do
       wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
 
-      result = MyStronglyConsistentApp.handle(wish, strong_consistency: ["#{@channel}-default"])
+      result =
+        MyStronglyConsistentApp.handle(wish,
+          strong_consistency: [MyStronglyConsistentApp.ListenerCallback]
+        )
+
       result_received_at = DateTime.utc_now()
 
       listener_completed_at =
@@ -118,7 +126,7 @@ defmodule Spine.ConsistencyE2eTest do
 
       result =
         MyStronglyConsistentApp.handle(wish,
-          strong_consistency: ["#{@channel}-default"],
+          strong_consistency: [MyStronglyConsistentApp.ListenerCallback],
           consistency_timeout: 500
         )
 
