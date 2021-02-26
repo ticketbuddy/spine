@@ -1,4 +1,4 @@
-defmodule Spine.ListenerTest do
+defmodule Spine.Listener.Worker.WorkerTest do
   use ExUnit.Case
   use Test.Support.Mox
 
@@ -11,10 +11,11 @@ defmodule Spine.ListenerTest do
       channel: "my-channel",
       callback: nil,
       spine: nil,
-      notifier: nil
+      notifier: nil,
+      starting_event_number: 2
     }
 
-    assert {:ok, pid} = Spine.Listener.start_link(config)
+    assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
     assert is_pid(pid)
   end
 
@@ -26,9 +27,6 @@ defmodule Spine.ListenerTest do
       {:ok, start_listening_from_event}
     end)
 
-    ListenerNotifierMock
-    |> expect(:subscribe, fn -> :ok end)
-
     config = %{
       channel: "my-other-channel",
       callback: nil,
@@ -37,7 +35,7 @@ defmodule Spine.ListenerTest do
       starting_event_number: start_listening_from_event
     }
 
-    assert {:ok, pid} = Spine.Listener.start_link(config)
+    assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
     assert is_pid(pid)
 
     assert {start_listening_from_event,
@@ -54,7 +52,7 @@ defmodule Spine.ListenerTest do
     config = %{}
 
     assert_raise(RuntimeError, fn ->
-      Spine.Listener.start_link(config)
+      Spine.Listener.Worker.start_link(config)
     end)
   end
 
@@ -62,21 +60,18 @@ defmodule Spine.ListenerTest do
     config = %{}
     state = {1, config}
 
-    Spine.Listener.init(state)
+    Spine.Listener.Worker.init(state)
 
-    assert_receive(:subscribe)
+    assert_receive(:subscribe_to_bus)
   end
 
-  test "handle_info/1 catches :subscribe message, and starts process work" do
+  test "handle_info/1 catches :subscribe message" do
     start_listening_from_event = 5
 
     BusDbMock
     |> expect(:subscribe, fn "my-channel", ^start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
-
-    ListenerNotifierMock
-    |> expect(:subscribe, fn -> :ok end)
 
     config = %{
       channel: "my-channel",
@@ -88,9 +83,7 @@ defmodule Spine.ListenerTest do
     existing_state = {start_listening_from_event, config}
 
     assert {:noreply, {start_listening_from_event, config}} ==
-             Spine.Listener.handle_info(:subscribe, existing_state)
-
-    assert_receive(:process)
+             Spine.Listener.Worker.handle_info(:subscribe_to_bus, existing_state)
   end
 
   describe "handle_info/1 :process message" do
@@ -108,7 +101,8 @@ defmodule Spine.ListenerTest do
 
       existing_state = {7, config}
 
-      assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
+      assert {:noreply, {7, config}} ==
+               Spine.Listener.Worker.handle_info(:process, existing_state)
 
       refute_receive(:process)
     end
@@ -143,7 +137,8 @@ defmodule Spine.ListenerTest do
 
       existing_state = {7, config}
 
-      assert {:noreply, {10, config}} == Spine.Listener.handle_info(:process, existing_state)
+      assert {:noreply, {10, config}} ==
+               Spine.Listener.Worker.handle_info(:process, existing_state)
 
       assert_receive(:process)
     end
@@ -172,7 +167,8 @@ defmodule Spine.ListenerTest do
 
       existing_state = {7, config}
 
-      assert {:noreply, {9, config}} == Spine.Listener.handle_info(:process, existing_state)
+      assert {:noreply, {9, config}} ==
+               Spine.Listener.Worker.handle_info(:process, existing_state)
 
       assert_receive(:process)
     end
@@ -182,6 +178,6 @@ defmodule Spine.ListenerTest do
     message = :anything
     state = :shrug
 
-    assert {:noreply, state} == Spine.Listener.handle_info(message, state)
+    assert {:noreply, state} == Spine.Listener.Worker.handle_info(message, state)
   end
 end
