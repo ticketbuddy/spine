@@ -66,14 +66,6 @@ defmodule Spine.BusDb.Postgres do
           })
 
           notifier.broadcast({:listener_completed_event, channel, cursor})
-          # then receive by doing:
-          """
-          receive do
-            {:listener_completed_event, ^channel, ^event_number} -> :ok
-          after
-            timeout -> {:timeout, event_number}
-          end
-          """
 
           :ok
       end
