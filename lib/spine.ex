@@ -21,6 +21,7 @@ defmodule Spine do
       @type channel :: String.t()
       @type wish :: any()
       @type handler :: Atom.t()
+      @type next_event_opts :: Keyword.t()
       @type opts :: [] | [idempotent_key: String.t()]
 
       @callback commit(events, cursor) :: :ok
@@ -40,7 +41,7 @@ defmodule Spine do
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
-      defdelegate next_event(event_number), to: @event_store
+      defdelegate next_event(event_number, next_event_opts), to: @event_store
       defdelegate subscribe(channel, starting_event_number), to: @bus
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus

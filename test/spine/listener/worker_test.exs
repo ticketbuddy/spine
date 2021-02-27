@@ -6,13 +6,20 @@ defmodule Spine.Listener.Worker.WorkerTest do
     use Spine, event_store: EventStoreMock, bus: BusDbMock
   end
 
+  setup do
+    stub(ListenerCallbackMock, :concurrency, fn -> :single end)
+
+    :ok
+  end
+
   test "can start the listener" do
     config = %{
       channel: "my-channel",
       callback: nil,
       spine: nil,
       notifier: nil,
-      starting_event_number: 2
+      starting_event_number: 2,
+      aggregate_id: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -32,7 +39,8 @@ defmodule Spine.Listener.Worker.WorkerTest do
       callback: nil,
       spine: MyApp,
       notifier: ListenerNotifierMock,
-      starting_event_number: start_listening_from_event
+      starting_event_number: start_listening_from_event,
+      aggregate_id: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -44,7 +52,8 @@ defmodule Spine.Listener.Worker.WorkerTest do
               callback: nil,
               spine: MyApp,
               notifier: ListenerNotifierMock,
-              starting_event_number: start_listening_from_event
+              starting_event_number: start_listening_from_event,
+              aggregate_id: "aggregate-one"
             }} == :sys.get_state(pid)
   end
 
@@ -89,7 +98,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
   describe "handle_info/1 :process message" do
     test "when the event does not exist, do not send :process message" do
       EventStoreMock
-      |> expect(:next_event, fn 7 ->
+      |> expect(:next_event, fn 7, [] ->
         {:ok, :no_next_event}
       end)
 
@@ -111,7 +120,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       event = %{an_event: "yes this is"}
 
       EventStoreMock
-      |> expect(:next_event, fn 7 ->
+      |> expect(:next_event, fn 7, [] ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
@@ -147,7 +156,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       event = %{an_event: "yes this is"}
 
       EventStoreMock
-      |> expect(:next_event, fn 7 ->
+      |> expect(:next_event, fn 7, [] ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid

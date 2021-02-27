@@ -13,6 +13,8 @@ defmodule Spine.EventStore.PostgresTest do
     :ok
   end
 
+  @next_event_opts []
+
   describe "committing events" do
     test "commits a single event" do
       event = %TestApp.Incremented{}
@@ -111,24 +113,45 @@ defmodule Spine.EventStore.PostgresTest do
       event_number = 2
 
       assert {:ok, %TestApp.Incremented{}, %{event_number: 2, inserted_at: %DateTime{}}} =
-               PostgresTestDb.next_event(event_number)
+               PostgresTestDb.next_event(event_number, @next_event_opts)
     end
 
     test "fetches the next event, when there is a gap" do
       event_number = 3
 
       assert {:ok, %TestApp.Incremented{}, %{event_number: 4, inserted_at: %DateTime{}}} =
-               PostgresTestDb.next_event(event_number)
+               PostgresTestDb.next_event(event_number, @next_event_opts)
     end
 
     test "when there is not a next_event" do
       event_number = 6_234
 
-      assert {:ok, :no_next_event} == PostgresTestDb.next_event(event_number)
+      assert {:ok, :no_next_event} == PostgresTestDb.next_event(event_number, @next_event_opts)
     end
 
     test "when individual event is not found" do
       assert nil == PostgresTestDb.event(-50)
+    end
+
+    test "fetches next event for by_aggregate channel type" do
+      # event_number = 1
+      aggregate_1_id = "basic-aggregate"
+      aggregate_2_id = "aggregate-for-channel"
+
+      {:ok, event_number} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 777}, {aggregate_1_id, 1}, [])
+
+      {:ok, expected_next_event} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 333}, {aggregate_2_id, 1}, [])
+
+      assert {:ok, _event, %{event_number: retrieved_event_id_by_aggregate}} =
+               PostgresTestDb.next_event(event_number, by_aggregate: aggregate_2_id)
+
+      assert {:ok, _event, %{event_number: retrieved_event_id}} =
+               PostgresTestDb.next_event(event_number, [])
+
+      assert expected_next_event == retrieved_event_id_by_aggregate
+      assert expected_next_event != retrieved_event_id
     end
   end
 end

@@ -50,6 +50,21 @@ defmodule Spine.ConsistencyE2eTest do
       @impl true
       def handle_event(_event, _meta), do: :ok
     end
+
+    defmodule ListenerByAggregateCallback do
+      use Spine.Listener.Callback, channel: "channel-two", concurrency: :by_aggregate
+
+      @impl true
+      def handle_event(%{time: sleep_for, reply_pid: pid}, _meta) do
+        :timer.sleep(sleep_for)
+        send(pid, {:consistency_by_aggregate, DateTime.utc_now()})
+
+        :ok
+      end
+
+      @impl true
+      def handle_event(_event, _meta), do: :ok
+    end
   end
 
   defmodule EventCatalog do
@@ -81,7 +96,20 @@ defmodule Spine.ConsistencyE2eTest do
            spine: MyStronglyConsistentApp,
            callback: MyStronglyConsistentApp.ListenerCallback,
            channel: @channel
-         }}
+         }},
+        id: :listener_one
+      )
+
+      start_supervised!(
+        {Spine.Listener,
+         %{
+           listener_supervisor: MyStronglyConsistentApp.ListenerDynamicSupervisor,
+           notifier: EventCommittedNotifier,
+           spine: MyStronglyConsistentApp,
+           callback: MyStronglyConsistentApp.ListenerByAggregateCallback,
+           channel: "channel-two"
+         }},
+        id: :listener_two
       )
 
       :ok
@@ -140,6 +168,22 @@ defmodule Spine.ConsistencyE2eTest do
       assert {:timeout, event_number} = result
       assert is_integer(event_number)
       assert :lt == DateTime.compare(result_received_at, listener_completed_at)
+    end
+
+    test "strong consistency for listener processing events per aggregate" do
+      submit_sleep_wish = fn timer ->
+        assert :ok =
+                 MyStronglyConsistentApp.handle(
+                   %EventCatalog.Sleep{timer: timer, time_ms: 700, reply_pid: self()},
+                   strong_consistency: [MyStronglyConsistentApp.ListenerByAggregateCallback]
+                 )
+      end
+
+      first = Task.async(fn -> submit_sleep_wish.("timer-one") end)
+      second = Task.async(fn -> submit_sleep_wish.("timer-two") end)
+      third = Task.async(fn -> submit_sleep_wish.("timer-three") end)
+
+      assert [:ok, :ok, :ok] == Task.await_many([first, second, third], 1_200)
     end
   end
 end

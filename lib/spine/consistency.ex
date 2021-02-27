@@ -15,7 +15,8 @@ defmodule Spine.Consistency do
 
   defp do_wait(channel, event_number, timeout) do
     receive do
-      {:listener_completed_event, ^channel, ^event_number} -> :ok
+      {:listener_completed_event, ^channel, ^event_number} ->
+        :ok
     after
       timeout -> {:timeout, event_number}
     end

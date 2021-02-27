@@ -41,6 +41,7 @@ defmodule Spine.Listener do
   def handle_info({:process, aggregate_id}, config) do
     listener_options = %{
       channel: config.callback.channel(aggregate_id),
+      aggregate_id: aggregate_id,
       starting_event_number: config.starting_event_number,
       spine: config.spine,
       callback: config.callback

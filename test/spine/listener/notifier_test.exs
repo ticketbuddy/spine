@@ -48,7 +48,7 @@ defmodule Spine.Listener.NotifierTest do
 
   describe "a phoenix pubsub implementation" do
     test "notifies listener of new events" do
-      expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
+      expect(EventStoreMock, :next_event, fn 1, [] -> {:ok, :no_next_event} end)
 
       MyPubSub.broadcast({:process, "aggregate-one"})
 
