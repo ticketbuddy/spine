@@ -103,7 +103,7 @@ defmodule Spine.EventStore.Postgres do
       nil ->
         {:ok, :no_next_event}
 
-      e = %Spine.EventStore.Postgres.Schema.Event{
+      %Spine.EventStore.Postgres.Schema.Event{
         data: data,
         event_number: event_number,
         inserted_at: inserted_at
