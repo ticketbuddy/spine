@@ -21,6 +21,7 @@ defmodule Spine do
       @type channel :: String.t()
       @type wish :: any()
       @type handler :: Atom.t()
+      @type next_event_opts :: Keyword.t()
       @type opts :: [] | [idempotent_key: String.t()]
 
       @callback commit(events, cursor) :: :ok
@@ -40,7 +41,7 @@ defmodule Spine do
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
-      defdelegate next_event(event_number), to: @event_store
+      defdelegate next_event(event_number, next_event_opts), to: @event_store
       defdelegate subscribe(channel, starting_event_number), to: @bus
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus
@@ -66,7 +67,7 @@ defmodule Spine do
 
         with {:ok, events} <- handler.execute(agg_state, wish),
              commited_result <- commit(List.wrap(events), cursor, opts),
-             :ok <- handle_consistency_guarantee(commited_result, opts) do
+             :ok <- handle_consistency_guarantee(aggregate_id, commited_result, opts) do
           :ok
         end
       end
@@ -77,20 +78,20 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
-      defp handle_consistency_guarantee(commited_result, opts) do
+      defp handle_consistency_guarantee(aggregate_id, commited_result, opts) do
         case commited_result do
           {:ok, :idempotent} ->
             :ok
 
           {:ok, event_number} when is_integer(event_number) ->
-            do_handle_consistency_guarantee(event_number, opts)
+            do_handle_consistency_guarantee(aggregate_id, event_number, opts)
 
           :error ->
             :error
         end
       end
 
-      defp do_handle_consistency_guarantee(event_number, opts) do
+      defp do_handle_consistency_guarantee(aggregate_id, event_number, opts) do
         case Keyword.get(opts, :strong_consistency, []) do
           [] ->
             :ok
@@ -99,6 +100,7 @@ defmodule Spine do
             timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
 
             Spine.Consistency.wait_for_event(
+              aggregate_id,
               event_completed_notifier(),
               channels,
               event_number,

@@ -14,7 +14,8 @@ defmodule Spine.Listener.Worker do
           starting_event_number: _starting_event_number,
           spine: _event_bus,
           callback: _callback,
-          channel: _channel
+          channel: _channel,
+          aggregate_id: _aggregate_id
         }
       ) do
     init_state = {config.starting_event_number, config}
@@ -29,14 +30,20 @@ defmodule Spine.Listener.Worker do
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; spine, callback and a channel."
+    raise "Listener must be started with; aggregate_id, spine, callback and a channel."
   end
 
   def handle_info(:process, state) do
     {cursor, config} = state
 
+    next_event_opts =
+      case config.callback.concurrency() do
+        :single -> []
+        :by_aggregate -> [by_aggregate: config.aggregate_id]
+      end
+
     cursor =
-      case config.spine.next_event(cursor) do
+      case config.spine.next_event(cursor, next_event_opts) do
         {:ok, :no_next_event} ->
           :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
             cursor: cursor,

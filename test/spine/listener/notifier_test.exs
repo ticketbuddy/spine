@@ -12,6 +12,13 @@ defmodule Spine.Listener.NotifierTest do
     use Spine.Listener.Notifier.PubSub, pubsub: :notifier_pubsub, topic: "new_event_topic"
   end
 
+  defmodule ListenerCallback do
+    use Spine.Listener.Callback, channel: "notifier-test-channel"
+
+    @impl true
+    def handle_event(_event, _meta), do: :ok
+  end
+
   setup do
     opts = [strategy: :one_for_one, name: NotifierTestSupervisor]
 
@@ -24,11 +31,10 @@ defmodule Spine.Listener.NotifierTest do
     )
 
     BusDbMock
-    |> expect(:subscribe, fn "#{@listener_channel}-default", 1 -> {:ok, 1} end)
+    |> expect(:subscribe, fn "#{@listener_channel}-single", 1 -> {:ok, 1} end)
 
     config = %{
-      channel: @listener_channel,
-      callback: nil,
+      callback: ListenerCallback,
       spine: MyApp,
       notifier: MyPubSub,
       listener_supervisor: MyApp.ListenerDynamicSupervisor
@@ -42,7 +48,7 @@ defmodule Spine.Listener.NotifierTest do
 
   describe "a phoenix pubsub implementation" do
     test "notifies listener of new events" do
-      expect(EventStoreMock, :next_event, fn 1 -> {:ok, :no_next_event} end)
+      expect(EventStoreMock, :next_event, fn 1, [] -> {:ok, :no_next_event} end)
 
       MyPubSub.broadcast({:process, "aggregate-one"})
 

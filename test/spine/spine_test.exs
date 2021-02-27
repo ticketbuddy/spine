@@ -39,6 +39,9 @@ defmodule SpineTest do
     end
 
     defmodule ListenerCallback do
+      use Spine.Listener.Callback, channel: "some-channel"
+
+      @impl true
       def handle_event(_event, _meta), do: :ok
     end
   end
@@ -86,7 +89,7 @@ defmodule SpineTest do
     test "handling a wish that requires strong consistency" do
       wish = %EventCatalog.Inc{counter_id: "counter-1"}
 
-      assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel-default"])
+      assert :ok = MyApp.handle(wish, strong_consistency: [MyApp.ListenerCallback])
     end
 
     test "handling a wish that requires strong consistency times out" do
@@ -94,7 +97,7 @@ defmodule SpineTest do
 
       assert {:timeout, event_number} =
                MyApp.handle(wish,
-                 strong_consistency: ["some-channel-default"],
+                 strong_consistency: [MyApp.ListenerCallback],
                  consistency_timeout: 0
                )
 
