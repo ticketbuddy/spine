@@ -26,10 +26,6 @@ defmodule Spine.ListenerTest do
       "channel-one"
     end)
 
-    expect(BusDbMock, :all_variants, fn _callback, channel: "channel-one" ->
-      {:ok, :ok}
-    end)
-
     expect(ListenerNotifierMock, :subscribe, fn ->
       :ok
     end)
@@ -45,29 +41,19 @@ defmodule Spine.ListenerTest do
     expect(ListenerNotifierMock, :subscribe, fn -> :ok end)
 
     assert {:ok, config} == Spine.Listener.init(config)
-    assert_receive(:_process_all_aggregates)
+    assert_receive(:check_for_previous_events)
   end
 
-  test "receive :_process_all_aggregates, starts processing all aggregates", %{config: config} do
+  test "receive :check_for_previous_events, starts processing all aggregates", %{config: config} do
     config = Map.put(config, :starting_event_number, 1)
 
-    expect(ListenerCallbackMock, :channel, 4, fn ->
+    expect(ListenerCallbackMock, :channel, fn ->
       "some-channel"
     end)
 
-    expect(ListenerCallbackMock, :variant, 3, fn
-      aggregate_id -> aggregate_id
-    end)
+    assert {:noreply, config} == Spine.Listener.handle_info(:check_for_previous_events, config)
 
-    expect(BusDbMock, :all_variants, fn callback, channel: "some-channel" ->
-      callback.(["aggregate-one", "aggregate-two", "aggregate-three"])
-
-      {:ok, :ok}
-    end)
-
-    assert {:noreply, config} == Spine.Listener.handle_info(:_process_all_aggregates, config)
-
-    assert %{active: 3, specs: 3, supervisors: 0, workers: 3} =
+    assert %{active: 1, specs: 1, supervisors: 0, workers: 1} =
              DynamicSupervisor.count_children(FakeListenerDynamicSupervisor)
   end
 end

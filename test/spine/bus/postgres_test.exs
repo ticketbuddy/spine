@@ -52,51 +52,6 @@ defmodule Spine.BusDb.PostgresTest do
     end
   end
 
-  describe "all_variants/2" do
-    setup do
-      channel_one = "channel-one"
-      channel_two = "channel-two"
-
-      variant_one = "aggregate-one"
-      variant_two = "aggregate-two"
-      variant_three = "aggregate-three"
-      variant_four = "aggregate-four"
-
-      for channel <- [channel_one, channel_two] do
-        PostgresTestDb.subscribe(channel, variant_one, @start_listening_from)
-        PostgresTestDb.subscribe(channel, variant_two, @start_listening_from)
-        PostgresTestDb.subscribe(channel, variant_three, @start_listening_from)
-        PostgresTestDb.subscribe(channel, variant_four, @start_listening_from)
-      end
-
-      PostgresTestDb.completed(channel_one, variant_two, 4)
-      PostgresTestDb.completed(channel_one, variant_three, 7)
-      PostgresTestDb.completed(channel_one, variant_four, 2)
-
-      PostgresTestDb.completed(channel_two, variant_two, 4)
-      PostgresTestDb.completed(channel_two, variant_three, 2)
-      PostgresTestDb.completed(channel_two, variant_four, 13)
-
-      :ok
-    end
-
-    test "by channel" do
-      test_pid = self()
-
-      cb = fn batch ->
-        assert "aggregate-one" in batch
-        assert "aggregate-two" in batch
-        assert "aggregate-three" in batch
-        assert "aggregate-four" in batch
-
-        send(test_pid, :received_batch)
-      end
-
-      assert {:ok, :ok} == PostgresTestDb.all_variants(cb, channel: "channel-one")
-      assert_receive(:received_batch)
-    end
-  end
-
   test "get cursor for the channel" do
     channel = "channel-one"
     variant = "aggregate-one"

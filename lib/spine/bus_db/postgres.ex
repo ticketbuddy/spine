@@ -47,20 +47,6 @@ defmodule Spine.BusDb.Postgres do
     |> Map.new()
   end
 
-  def all_variants(repo, callback, channel: channel) do
-    repo.transaction(fn ->
-      from(s in Schema.Subscription,
-        order_by: s.updated_at,
-        where: s.channel == ^channel,
-        select: s.variant
-      )
-      |> repo.stream()
-      |> Stream.chunk_every(@chunk_variants)
-      |> Stream.each(callback)
-      |> Stream.run()
-    end)
-  end
-
   def cursor(repo, channel, variant) do
     repo.get_by!(Schema.Subscription, channel: channel, variant: variant)
     |> case do
@@ -119,10 +105,6 @@ defmodule Spine.BusDb.Postgres do
 
       def subscriptions do
         Postgres.subscriptions(@repo)
-      end
-
-      def all_variants(callback, query_opts) do
-        Postgres.all_variants(@repo, callback, query_opts)
       end
 
       def cursor(channel, variant) do

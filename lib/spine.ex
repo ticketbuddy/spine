@@ -37,7 +37,6 @@ defmodule Spine do
       @callback handle(wish, opts) :: :ok | any()
       @callback read(aggregate_id, handler) :: any()
       @callback event_completed_notifier() :: Module.t()
-      @callback all_variants((() -> List.t()), Spine.BusDb.all_variants_opts()) :: {:ok, :ok}
 
       defdelegate commit(events, cursor, opts), to: @event_store
       defdelegate all_events(), to: @event_store
@@ -49,7 +48,6 @@ defmodule Spine do
       defdelegate cursor(channel, variant), to: @bus
       defdelegate completed(channel, variant, cursor), to: @bus
       defdelegate event_completed_notifier(), to: @bus
-      defdelegate all_variants(callback, query_opts), to: @bus
 
       def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)
