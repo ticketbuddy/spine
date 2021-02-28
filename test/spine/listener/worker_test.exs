@@ -97,7 +97,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
   end
 
   describe "handle_info/1 :process message" do
-    test "when the event does not exist, do not send :process message" do
+    test "stops worker when the event does not exist, and does not send :process message" do
       EventStoreMock
       |> expect(:next_event, fn 7, [] ->
         {:ok, :no_next_event}
@@ -112,7 +112,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
 
       existing_state = {7, config}
 
-      assert {:noreply, {7, config}} ==
+      assert {:stop, :normal, {7, config}} ==
                Spine.Listener.Worker.handle_info(:process, existing_state)
 
       refute_receive(:process)

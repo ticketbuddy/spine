@@ -38,24 +38,22 @@ defmodule Spine.BusDb.PostgresTest do
   end
 
   describe "retrieves subscriptions" do
-    test "for a single channel with multiple variants" do
-      channel = "channel-one"
+    test "retrieves list of channels" do
+      channel_one = "channel-one"
+      channel_two = "channel-two"
+
       variant_one = "aggregate-one"
       variant_two = "aggregate-two"
-      variant_three = "aggregate-three"
-      variant_four = "aggregate-four"
 
-      PostgresTestDb.subscribe(channel, variant_one, @start_listening_from)
-      PostgresTestDb.subscribe(channel, variant_two, @start_listening_from)
-      PostgresTestDb.subscribe(channel, variant_three, @start_listening_from)
-      PostgresTestDb.subscribe(channel, variant_four, @start_listening_from)
+      PostgresTestDb.subscribe(channel_one, variant_one, @start_listening_from)
+      PostgresTestDb.subscribe(channel_two, variant_two, @start_listening_from)
 
-      assert %{
-               "channel-one" => 1
-             } == PostgresTestDb.subscriptions()
+      assert %{"channel-one" => 1, "channel-two" => 1} == PostgresTestDb.subscriptions()
     end
+  end
 
-    test "for multiple channels with multiple variants" do
+  describe "all_variants/2" do
+    setup do
       channel_one = "channel-one"
       channel_two = "channel-two"
 
@@ -71,16 +69,31 @@ defmodule Spine.BusDb.PostgresTest do
         PostgresTestDb.subscribe(channel, variant_four, @start_listening_from)
       end
 
-      PostgresTestDb.completed(channel_one, variant_two, 7)
-      PostgresTestDb.completed(channel_one, variant_three, 9)
+      PostgresTestDb.completed(channel_one, variant_two, 4)
+      PostgresTestDb.completed(channel_one, variant_three, 7)
+      PostgresTestDb.completed(channel_one, variant_four, 2)
 
+      PostgresTestDb.completed(channel_two, variant_two, 4)
       PostgresTestDb.completed(channel_two, variant_three, 2)
-      PostgresTestDb.completed(channel_two, variant_four, 5)
+      PostgresTestDb.completed(channel_two, variant_four, 13)
 
-      assert %{
-               "channel-one" => 10,
-               "channel-two" => 6
-             } == PostgresTestDb.subscriptions()
+      :ok
+    end
+
+    test "by channel" do
+      test_pid = self()
+
+      cb = fn batch ->
+        assert "aggregate-one" in batch
+        assert "aggregate-two" in batch
+        assert "aggregate-three" in batch
+        assert "aggregate-four" in batch
+
+        send(test_pid, :received_batch)
+      end
+
+      assert {:ok, :ok} == PostgresTestDb.all_variants(cb, channel: "channel-one")
+      assert_receive(:received_batch)
     end
   end
 

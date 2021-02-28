@@ -1,6 +1,9 @@
 defmodule Spine.BusDb.Postgres do
   alias Spine.BusDb.Postgres.Schema
   require Logger
+  import Ecto.Query, only: [from: 2]
+
+  @chunk_variants 50
 
   def subscribe(repo, channel, variant, starting_event_number) do
     Schema.Subscription.changeset(%{
@@ -31,16 +34,31 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  def subscriptions(repo) do
-    import Ecto.Query, only: [from: 2]
+  @doc """
+  Returns the latest event to be completed for each
+  channel.
 
+  WARNING: This does not mean that all events have been completed
+  to these returned values.
+  """
+  def subscriptions(repo) do
     from(s in Schema.Subscription, group_by: [:channel], select: {s.channel, max(s.cursor)})
     |> repo.all()
     |> Map.new()
   end
 
-  def cursor(repo, channel) do
-    raise "NOT YET IMPLEMENETED"
+  def all_variants(repo, callback, channel: channel) do
+    repo.transaction(fn ->
+      from(s in Schema.Subscription,
+        order_by: s.updated_at,
+        where: s.channel == ^channel,
+        select: s.variant
+      )
+      |> repo.stream()
+      |> Stream.chunk_every(@chunk_variants)
+      |> Stream.each(callback)
+      |> Stream.run()
+    end)
   end
 
   def cursor(repo, channel, variant) do
@@ -101,6 +119,10 @@ defmodule Spine.BusDb.Postgres do
 
       def subscriptions do
         Postgres.subscriptions(@repo)
+      end
+
+      def all_variants(callback, query_opts) do
+        Postgres.all_variants(@repo, callback, query_opts)
       end
 
       def cursor(channel, variant) do

@@ -15,6 +15,8 @@ defmodule Spine.Listener do
   def init(config) do
     config.notifier.subscribe()
 
+    send(self(), :_process_all_aggregates)
+
     {:ok, config}
   end
 
@@ -34,6 +36,25 @@ defmodule Spine.Listener do
 
   def handle_info({:process, aggregate_id}, config) do
     process_event(aggregate_id, config)
+
+    {:noreply, config}
+  end
+
+  @doc """
+  Loads all variants of this listener channel (typically aggregates)
+  the will then check if they have any work to do.
+
+  NOTE: This is definitely not the most
+  efficient way to ensure listeners varying on variants
+  are up-to-date. This implementation will like change.
+  """
+  def handle_info(:_process_all_aggregates, config) do
+    config.spine.all_variants(
+      fn variants ->
+        Enum.each(variants, &process_event(&1, config))
+      end,
+      channel: config.callback.channel()
+    )
 
     {:noreply, config}
   end
