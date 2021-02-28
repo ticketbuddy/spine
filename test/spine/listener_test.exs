@@ -30,10 +30,6 @@ defmodule Spine.ListenerTest do
 
     expect(ListenerCallbackMock, :variant, fn -> "single" end)
 
-    # # expect(BusDbMock, :all_variants, fn _callback, channel: "channel-one" ->
-    #   # {:ok, :ok}
-    # # end)
-    #
     expect(ListenerNotifierMock, :subscribe, fn ->
       :ok
     end)
