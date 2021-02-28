@@ -154,4 +154,54 @@ defmodule Spine.EventStore.PostgresTest do
       assert expected_next_event != retrieved_event_id
     end
   end
+
+  describe "fetches aggregates" do
+    setup do
+      for index <- 0..15 do
+        PostgresTestDb.commit(%TestApp.Incremented{count: 9}, {"aggregate-#{index}", 1}, [])
+      end
+
+      :ok
+    end
+
+    test "returns all aggregates in batches of 10" do
+      test_pid = self()
+
+      cb = fn batch ->
+        send(test_pid, {:received_batch, batch})
+      end
+
+      assert {:ok, :ok} == PostgresTestDb.all_aggregates(cb)
+
+      assert_receive(
+        {:received_batch,
+         [
+           "seeded-aggregate-1",
+           "seeded-aggregate-2",
+           "aggregate-0",
+           "aggregate-1",
+           "aggregate-10",
+           "aggregate-11",
+           "aggregate-12",
+           "aggregate-13",
+           "aggregate-14",
+           "aggregate-15"
+         ]}
+      )
+
+      assert_receive(
+        {:received_batch,
+         [
+           "aggregate-2",
+           "aggregate-3",
+           "aggregate-4",
+           "aggregate-5",
+           "aggregate-6",
+           "aggregate-7",
+           "aggregate-8",
+           "aggregate-9"
+         ]}
+      )
+    end
+  end
 end

@@ -1,6 +1,7 @@
 defmodule Spine.EventStore.Postgres do
   alias __MODULE__.{Commit, Schema}
   require Logger
+  import Ecto.Query, only: [from: 2]
 
   def commit(repo, notifier, events, cursor, opts) do
     events = List.wrap(events)
@@ -46,8 +47,6 @@ defmodule Spine.EventStore.Postgres do
   end
 
   def aggregate_events(repo, aggregate_id) do
-    import Ecto.Query
-
     :telemetry.execute([:spine, :event_store, :load_aggregate], %{count: 1}, %{
       aggregate_id: aggregate_id
     })
@@ -81,6 +80,22 @@ defmodule Spine.EventStore.Postgres do
     end
   end
 
+  def all_aggregates(repo, callback) do
+    chunk_aggregates = 10
+
+    repo.transaction(fn ->
+      from(s in Schema.Event,
+        group_by: [:aggregate_id, :inserted_at],
+        order_by: s.inserted_at,
+        select: s.aggregate_id
+      )
+      |> repo.stream()
+      |> Stream.chunk_every(chunk_aggregates)
+      |> Stream.each(callback)
+      |> Stream.run()
+    end)
+  end
+
   @doc """
   event_number is stored as `bigserial`.
   This means there can be gaps.
@@ -90,8 +105,6 @@ defmodule Spine.EventStore.Postgres do
   given an event_number.
   """
   def next_event(repo, event_number, opts) do
-    import Ecto.Query
-
     from(e in Schema.Event,
       where: e.event_number >= ^event_number,
       order_by: [asc: e.event_number],
@@ -145,6 +158,11 @@ defmodule Spine.EventStore.Postgres do
       @impl Spine.EventStore
       def aggregate_events(aggregate_events) do
         Postgres.aggregate_events(@repo, aggregate_events)
+      end
+
+      @impl Spine.EventStore
+      def all_aggregates(callback) do
+        Postgres.all_aggregates(@repo, callback)
       end
 
       @impl Spine.EventStore

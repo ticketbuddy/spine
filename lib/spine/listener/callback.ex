@@ -4,6 +4,7 @@ defmodule Spine.Listener.Callback do
 
   @callback handle_event(any, meta) :: :ok | any
   @callback concurrency() :: :single | :by_aggregate
+  @callback variant() :: String.t()
   @callback variant(aggregate_id) :: String.t()
   @callback channel() :: String.t()
 
@@ -17,6 +18,8 @@ defmodule Spine.Listener.Callback do
       def concurrency, do: @concurrency
 
       def channel, do: @channel
+
+      def variant, do: "single"
 
       def variant(aggregate_id) do
         case concurrency() do

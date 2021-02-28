@@ -26,9 +26,9 @@ defmodule Spine.ListenerTest do
       "channel-one"
     end)
 
-    expect(BusDbMock, :all_variants, fn _callback, channel: "channel-one" ->
-      {:ok, :ok}
-    end)
+    expect(ListenerCallbackMock, :concurrency, fn -> :single end)
+
+    expect(ListenerCallbackMock, :variant, fn -> "single" end)
 
     expect(ListenerNotifierMock, :subscribe, fn ->
       :ok
@@ -39,19 +39,46 @@ defmodule Spine.ListenerTest do
     assert Map.put(config, :starting_event_number, 1) == :sys.get_state(pid)
   end
 
-  test "on listener init, subscribes to notifier, and starts processing all aggregates", %{
-    config: config
-  } do
-    expect(ListenerNotifierMock, :subscribe, fn -> :ok end)
+  describe "on listener init" do
+    setup do
+      stub(ListenerNotifierMock, :subscribe, fn -> :ok end)
 
-    assert {:ok, config} == Spine.Listener.init(config)
-    assert_receive(:_process_all_aggregates)
+      stub(ListenerCallbackMock, :concurrency, fn -> :single end)
+
+      :ok
+    end
+
+    test "subscribes to notifier", %{
+      config: config
+    } do
+      expect(ListenerNotifierMock, :subscribe, fn -> :ok end)
+
+      assert {:ok, config} == Spine.Listener.init(config)
+    end
+
+    test "when concurrency: :single, starts processing single stream", %{
+      config: config
+    } do
+      expect(ListenerCallbackMock, :concurrency, fn -> :single end)
+
+      assert {:ok, config} == Spine.Listener.init(config)
+      assert_receive(:process)
+    end
+
+    test "when concurrency: :by_aggregate, starts processing all aggregates", %{
+      config: config
+    } do
+      expect(ListenerCallbackMock, :concurrency, fn -> :by_aggregate end)
+
+      assert {:ok, config} == Spine.Listener.init(config)
+      assert_receive(:process_all_aggregates)
+    end
   end
 
-  test "receive :_process_all_aggregates, starts processing all aggregates", %{config: config} do
+  test "receive :process_all_aggregates, starts processing all aggregates", %{config: config} do
     config = Map.put(config, :starting_event_number, 1)
 
-    expect(ListenerCallbackMock, :channel, 4, fn ->
+    expect(ListenerCallbackMock, :channel, 3, fn ->
       "some-channel"
     end)
 
@@ -59,13 +86,13 @@ defmodule Spine.ListenerTest do
       aggregate_id -> aggregate_id
     end)
 
-    expect(BusDbMock, :all_variants, fn callback, channel: "some-channel" ->
+    expect(EventStoreMock, :all_aggregates, fn callback ->
       callback.(["aggregate-one", "aggregate-two", "aggregate-three"])
 
       {:ok, :ok}
     end)
 
-    assert {:noreply, config} == Spine.Listener.handle_info(:_process_all_aggregates, config)
+    assert {:noreply, config} == Spine.Listener.handle_info(:process_all_aggregates, config)
 
     assert %{active: 3, specs: 3, supervisors: 0, workers: 3} =
              DynamicSupervisor.count_children(FakeListenerDynamicSupervisor)
