@@ -32,10 +32,11 @@ defmodule Spine.BusDb.Postgres do
   end
 
   def subscriptions(repo) do
-    repo.all(Schema.Subscription)
-    |> Enum.reduce(%{}, fn subscription, acc ->
-      Map.put(acc, subscription.channel, subscription.cursor)
-    end)
+    import Ecto.Query, only: [from: 2]
+
+    from(s in Schema.Subscription, group_by: [:channel], select: {s.channel, max(s.cursor)})
+    |> repo.all()
+    |> Map.new()
   end
 
   def cursor(repo, channel) do

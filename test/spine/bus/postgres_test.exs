@@ -37,15 +37,51 @@ defmodule Spine.BusDb.PostgresTest do
     assert {:ok, 3} = PostgresTestDb.subscribe(channel, variant, @start_listening_from)
   end
 
-  test "retrieves subscriptions" do
-    channel = "channel-one"
-    variant = "aggregate-one"
+  describe "retrieves subscriptions" do
+    test "for a single channel with multiple variants" do
+      channel = "channel-one"
+      variant_one = "aggregate-one"
+      variant_two = "aggregate-two"
+      variant_three = "aggregate-three"
+      variant_four = "aggregate-four"
 
-    PostgresTestDb.subscribe(channel, variant, @start_listening_from)
+      PostgresTestDb.subscribe(channel, variant_one, @start_listening_from)
+      PostgresTestDb.subscribe(channel, variant_two, @start_listening_from)
+      PostgresTestDb.subscribe(channel, variant_three, @start_listening_from)
+      PostgresTestDb.subscribe(channel, variant_four, @start_listening_from)
 
-    assert %{
-             "channel-one" => 1
-           } == PostgresTestDb.subscriptions()
+      assert %{
+               "channel-one" => 1
+             } == PostgresTestDb.subscriptions()
+    end
+
+    test "for multiple channels with multiple variants" do
+      channel_one = "channel-one"
+      channel_two = "channel-two"
+
+      variant_one = "aggregate-one"
+      variant_two = "aggregate-two"
+      variant_three = "aggregate-three"
+      variant_four = "aggregate-four"
+
+      for channel <- [channel_one, channel_two] do
+        PostgresTestDb.subscribe(channel, variant_one, @start_listening_from)
+        PostgresTestDb.subscribe(channel, variant_two, @start_listening_from)
+        PostgresTestDb.subscribe(channel, variant_three, @start_listening_from)
+        PostgresTestDb.subscribe(channel, variant_four, @start_listening_from)
+      end
+
+      PostgresTestDb.completed(channel_one, variant_two, 7)
+      PostgresTestDb.completed(channel_one, variant_three, 9)
+
+      PostgresTestDb.completed(channel_two, variant_three, 2)
+      PostgresTestDb.completed(channel_two, variant_four, 5)
+
+      assert %{
+               "channel-one" => 10,
+               "channel-two" => 6
+             } == PostgresTestDb.subscriptions()
+    end
   end
 
   test "get cursor for the channel" do
