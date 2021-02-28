@@ -5,6 +5,7 @@ defmodule Spine.BusDb.Postgres.Schema.Subscription do
 
   schema "spine_subscription" do
     field(:channel, :string, primary_key: true)
+    field(:variant, :string, primary_key: true)
     field(:starting_event_number, :integer)
     field(:cursor, :integer)
 
@@ -15,8 +16,8 @@ defmodule Spine.BusDb.Postgres.Schema.Subscription do
     import Ecto.Changeset
 
     %__MODULE__{}
-    |> cast(params, [:channel, :starting_event_number, :cursor, :channel])
-    |> validate_required([:channel, :starting_event_number, :cursor, :channel])
+    |> cast(params, [:channel, :variant, :starting_event_number, :cursor, :channel])
+    |> validate_required([:channel, :variant, :starting_event_number, :cursor, :channel])
     |> unique_constraint(:channel, name: :spine_subscription_pkey)
   end
 end

@@ -133,7 +133,7 @@ defmodule Spine.EventStore.PostgresTest do
       assert nil == PostgresTestDb.event(-50)
     end
 
-    test "fetches next event for by_aggregate channel type" do
+    test "fetches next event for by_variant channel type" do
       # event_number = 1
       aggregate_1_id = "basic-aggregate"
       aggregate_2_id = "aggregate-for-channel"
@@ -144,13 +144,13 @@ defmodule Spine.EventStore.PostgresTest do
       {:ok, expected_next_event} =
         PostgresTestDb.commit(%TestApp.Incremented{count: 333}, {aggregate_2_id, 1}, [])
 
-      assert {:ok, _event, %{event_number: retrieved_event_id_by_aggregate}} =
-               PostgresTestDb.next_event(event_number, by_aggregate: aggregate_2_id)
+      assert {:ok, _event, %{event_number: retrieved_event_id_by_variant}} =
+               PostgresTestDb.next_event(event_number, by_variant: aggregate_2_id)
 
       assert {:ok, _event, %{event_number: retrieved_event_id}} =
                PostgresTestDb.next_event(event_number, [])
 
-      assert expected_next_event == retrieved_event_id_by_aggregate
+      assert expected_next_event == retrieved_event_id_by_variant
       assert expected_next_event != retrieved_event_id
     end
   end

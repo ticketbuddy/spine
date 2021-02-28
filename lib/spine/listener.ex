@@ -13,7 +13,9 @@ defmodule Spine.Listener do
   @default_starting_number 1
 
   def init(config) do
-    send(self(), :subscribe_to_event_store)
+    config.notifier.subscribe()
+
+    send(self(), :_process_all_aggregates)
 
     {:ok, config}
   end
@@ -29,38 +31,54 @@ defmodule Spine.Listener do
     config = Map.put_new(config, :starting_event_number, @default_starting_number)
     init_state = config
 
-    GenServer.start_link(__MODULE__, init_state, name: {:global, config.callback.root_channel()})
+    GenServer.start_link(__MODULE__, init_state, name: {:global, config.callback.channel()})
   end
 
-  def handle_info(:subscribe_to_event_store, config) do
-    :ok = config.notifier.subscribe()
+  def handle_info({:process, aggregate_id}, config) do
+    process_event(aggregate_id, config)
 
     {:noreply, config}
   end
 
-  def handle_info({:process, aggregate_id}, config) do
+  @doc """
+  Loads all variants of this listener channel (typically aggregates)
+  the will then check if they have any work to do.
+
+  NOTE: This is definitely not the most
+  efficient way to ensure listeners varying on variants
+  are up-to-date. This implementation will like change.
+  """
+  def handle_info(:_process_all_aggregates, config) do
+    config.spine.all_variants(
+      fn variants ->
+        Enum.each(variants, &process_event(&1, config))
+      end,
+      channel: config.callback.channel()
+    )
+
+    {:noreply, config}
+  end
+
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  defp process_event(aggregate_id, config) do
     listener_options = %{
-      channel: config.callback.channel(aggregate_id),
-      aggregate_id: aggregate_id,
+      channel: config.callback.channel(),
+      variant: config.callback.variant(aggregate_id),
       starting_event_number: config.starting_event_number,
       spine: config.spine,
       callback: config.callback
     }
 
     listener_child_spec = %{
-      id: {Listener.Worker, listener_options.channel},
+      id: {Listener.Worker, listener_options.channel <> listener_options.variant},
       start: {Listener.Worker, :start_link, [listener_options]},
       restart: :temporary
     }
 
     {:ok, pid} = find_or_start_worker(config.listener_supervisor, listener_child_spec)
-
     send(pid, :process)
-
-    {:noreply, config}
   end
-
-  def handle_info(_msg, state), do: {:noreply, state}
 
   defp find_or_start_worker(worker_supervisor, child_spec) do
     case DynamicSupervisor.start_child(worker_supervisor, child_spec) do

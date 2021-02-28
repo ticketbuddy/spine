@@ -23,30 +23,33 @@ defmodule Spine do
       @type handler :: Atom.t()
       @type next_event_opts :: Keyword.t()
       @type opts :: [] | [idempotent_key: String.t()]
+      @type variant :: String.t()
 
       @callback commit(events, cursor) :: :ok
       @callback all_events() :: List.t()
       @callback aggregate_events(aggregate_id) :: List.t()
       @callback event(event_number) :: any()
-      @callback subscribe(channel, starting_event_number) :: :ok
+      @callback subscribe(channel, variant, starting_event_number) :: :ok
       @callback subscriptions() :: map()
-      @callback cursor(channel) :: non_neg_integer()
-      @callback completed(channel, cursor) :: :ok
+      @callback cursor(channel, variant) :: non_neg_integer()
+      @callback completed(channel, variant, cursor) :: :ok
       @callback handle(wish) :: :ok | any()
       @callback handle(wish, opts) :: :ok | any()
       @callback read(aggregate_id, handler) :: any()
       @callback event_completed_notifier() :: Module.t()
+      @callback all_variants((() -> List.t()), Spine.BusDb.all_variants_opts()) :: {:ok, :ok}
 
       defdelegate commit(events, cursor, opts), to: @event_store
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
       defdelegate next_event(event_number, next_event_opts), to: @event_store
-      defdelegate subscribe(channel, starting_event_number), to: @bus
+      defdelegate subscribe(channel, variant, starting_event_number), to: @bus
       defdelegate subscriptions(), to: @bus
-      defdelegate cursor(channel), to: @bus
-      defdelegate completed(channel, cursor), to: @bus
+      defdelegate cursor(channel, variant), to: @bus
+      defdelegate completed(channel, variant, cursor), to: @bus
       defdelegate event_completed_notifier(), to: @bus
+      defdelegate all_variants(callback, query_opts), to: @bus
 
       def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)

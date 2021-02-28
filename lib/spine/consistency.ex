@@ -2,9 +2,10 @@ defmodule Spine.Consistency do
   def wait_for_event(aggregate_id, notifier, [listener_callback], event_number, timeout) do
     notifier.subscribe()
 
-    channel = listener_callback.channel(aggregate_id)
+    channel = listener_callback.channel()
+    variant = listener_callback.variant(aggregate_id)
 
-    consistency_result = do_wait(channel, event_number, timeout)
+    consistency_result = do_wait(channel, variant, event_number, timeout)
 
     consistency_result
   end
@@ -13,9 +14,9 @@ defmodule Spine.Consistency do
     raise "Spine currently only supports strong consistency for one channel"
   end
 
-  defp do_wait(channel, event_number, timeout) do
+  defp do_wait(channel, variant, event_number, timeout) do
     receive do
-      {:listener_completed_event, ^channel, ^event_number} ->
+      {:listener_completed_event, ^channel, ^variant, ^event_number} ->
         :ok
     after
       timeout -> {:timeout, event_number}
