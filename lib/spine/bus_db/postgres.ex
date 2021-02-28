@@ -2,17 +2,19 @@ defmodule Spine.BusDb.Postgres do
   alias Spine.BusDb.Postgres.Schema
   require Logger
 
-  def subscribe(repo, channel, starting_event_number) do
+  def subscribe(repo, channel, variant, starting_event_number) do
     Schema.Subscription.changeset(%{
       channel: channel,
       starting_event_number: starting_event_number,
-      cursor: starting_event_number
+      cursor: starting_event_number,
+      variant: variant
     })
     |> repo.insert()
     |> case do
       {:ok, subscription} ->
         :telemetry.execute([:spine, :bus_db, :subscription, :ok], %{count: 1}, %{
           channel: channel,
+          variant: variant,
           starting_event_number: starting_event_number
         })
 
@@ -25,7 +27,7 @@ defmodule Spine.BusDb.Postgres do
           starting_event_number: starting_event_number
         })
 
-        {:ok, cursor(repo, channel)}
+        {:ok, cursor(repo, channel, variant)}
     end
   end
 
@@ -37,7 +39,11 @@ defmodule Spine.BusDb.Postgres do
   end
 
   def cursor(repo, channel) do
-    repo.get(Schema.Subscription, channel)
+    raise "NOT YET IMPLEMENETED"
+  end
+
+  def cursor(repo, channel, variant) do
+    repo.get_by!(Schema.Subscription, channel: channel, variant: variant)
     |> case do
       %{cursor: cursor} ->
         :telemetry.execute([:spine, :bus_db, :get_cursor, :ok], %{count: 1}, %{
@@ -49,10 +55,10 @@ defmodule Spine.BusDb.Postgres do
     end
   end
 
-  def completed(repo, notifier, channel, cursor) do
+  def completed(repo, notifier, channel, variant, cursor) do
     # TODO should be done in a transaction?
 
-    subscription = repo.get!(Schema.Subscription, channel)
+    subscription = repo.get_by!(Schema.Subscription, channel: channel, variant: variant)
 
     if cursor >= subscription.cursor do
       subscription
@@ -65,7 +71,7 @@ defmodule Spine.BusDb.Postgres do
             cursor: cursor
           })
 
-          notifier.broadcast({:listener_completed_event, channel, cursor})
+          notifier.broadcast({:listener_completed_event, channel, variant, cursor})
 
           :ok
       end
@@ -88,20 +94,20 @@ defmodule Spine.BusDb.Postgres do
       @notifier unquote(notifier)
       alias Spine.BusDb.Postgres
 
-      def subscribe(channel, starting_event_number) do
-        Postgres.subscribe(@repo, channel, starting_event_number)
+      def subscribe(channel, variant, starting_event_number) do
+        Postgres.subscribe(@repo, channel, variant, starting_event_number)
       end
 
       def subscriptions do
         Postgres.subscriptions(@repo)
       end
 
-      def cursor(channel) do
-        Postgres.cursor(@repo, channel)
+      def cursor(channel, variant) do
+        Postgres.cursor(@repo, channel, variant)
       end
 
-      def completed(channel, cursor) do
-        Postgres.completed(@repo, @notifier, channel, cursor)
+      def completed(channel, variant, cursor) do
+        Postgres.completed(@repo, @notifier, channel, variant, cursor)
       end
 
       def event_completed_notifier, do: @notifier

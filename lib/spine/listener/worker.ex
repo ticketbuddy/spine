@@ -15,31 +15,34 @@ defmodule Spine.Listener.Worker do
           spine: _event_bus,
           callback: _callback,
           channel: _channel,
-          aggregate_id: _aggregate_id
+          variant: _variant
         }
       ) do
     init_state = {config.starting_event_number, config}
 
-    GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
+    GenServer.start_link(__MODULE__, init_state,
+      name: {:global, "#{config.channel}-#{config.variant}"}
+    )
   end
 
   def handle_info(:subscribe_to_bus, {_cursor, config}) do
-    {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
+    {:ok, cursor} =
+      config.spine.subscribe(config.channel, config.variant, config.starting_event_number)
 
     {:noreply, {cursor, config}}
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; aggregate_id, spine, callback and a channel."
+    raise "Listener must be started with; variant, spine, callback and a channel."
   end
 
   def handle_info(:process, state) do
     {cursor, config} = state
 
     next_event_opts =
-      case config.callback.concurrency() do
-        :single -> []
-        :by_aggregate -> [by_aggregate: config.aggregate_id]
+      case config.variant do
+        "single" -> []
+        vairant -> [by_variant: vairant]
       end
 
     cursor =
@@ -89,7 +92,7 @@ defmodule Spine.Listener.Worker do
           event: event
         })
 
-        config.spine.completed(config.channel, cursor)
+        config.spine.completed(config.channel, config.variant, cursor)
         cursor + 1
 
       other ->

@@ -4,8 +4,8 @@ defmodule Spine.Listener.Callback do
 
   @callback handle_event(any, meta) :: :ok | any
   @callback concurrency() :: :single | :by_aggregate
-  @callback channel(aggregate_id) :: String.t()
-  @callback root_channel() :: String.t()
+  @callback variant(aggregate_id) :: String.t()
+  @callback channel() :: String.t()
 
   defmacro __using__(opts) do
     quote do
@@ -16,12 +16,12 @@ defmodule Spine.Listener.Callback do
 
       def concurrency, do: @concurrency
 
-      def root_channel, do: @channel
+      def channel, do: @channel
 
-      def channel(aggregate_id) do
+      def variant(aggregate_id) do
         case concurrency() do
-          :single -> "#{root_channel()}-single"
-          :by_aggregate -> "#{root_channel()}-#{aggregate_id}"
+          :single -> "single"
+          :by_aggregate -> aggregate_id
         end
       end
     end

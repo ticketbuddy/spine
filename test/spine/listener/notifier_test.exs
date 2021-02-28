@@ -31,7 +31,7 @@ defmodule Spine.Listener.NotifierTest do
     )
 
     BusDbMock
-    |> expect(:subscribe, fn "#{@listener_channel}-single", 1 -> {:ok, 1} end)
+    |> expect(:subscribe, fn @listener_channel, "single", 1 -> {:ok, 1} end)
 
     config = %{
       callback: ListenerCallback,

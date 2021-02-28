@@ -19,7 +19,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       spine: nil,
       notifier: nil,
       starting_event_number: 2,
-      aggregate_id: "aggregate-one"
+      variant: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -30,7 +30,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
     start_listening_from_event = 3
 
     BusDbMock
-    |> expect(:subscribe, fn "my-other-channel", start_listening_from_event ->
+    |> expect(:subscribe, fn "my-other-channel", "aggregate-one", start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
 
@@ -40,7 +40,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       spine: MyApp,
       notifier: ListenerNotifierMock,
       starting_event_number: start_listening_from_event,
-      aggregate_id: "aggregate-one"
+      variant: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -53,7 +53,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
               spine: MyApp,
               notifier: ListenerNotifierMock,
               starting_event_number: start_listening_from_event,
-              aggregate_id: "aggregate-one"
+              variant: "aggregate-one"
             }} == :sys.get_state(pid)
   end
 
@@ -78,7 +78,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
     start_listening_from_event = 5
 
     BusDbMock
-    |> expect(:subscribe, fn "my-channel", ^start_listening_from_event ->
+    |> expect(:subscribe, fn "my-channel", "single", ^start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
 
@@ -86,7 +86,8 @@ defmodule Spine.Listener.Worker.WorkerTest do
       channel: "my-channel",
       spine: MyApp,
       notifier: ListenerNotifierMock,
-      starting_event_number: start_listening_from_event
+      starting_event_number: start_listening_from_event,
+      variant: "single"
     }
 
     existing_state = {start_listening_from_event, config}
@@ -105,7 +106,8 @@ defmodule Spine.Listener.Worker.WorkerTest do
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock
+        callback: ListenerCallbackMock,
+        variant: "single"
       }
 
       existing_state = {7, config}
@@ -134,14 +136,15 @@ defmodule Spine.Listener.Worker.WorkerTest do
       end)
 
       BusDbMock
-      |> expect(:completed, fn "my-channel", 9 ->
+      |> expect(:completed, fn "my-channel", "single", 9 ->
         :ok
       end)
 
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock
+        callback: ListenerCallbackMock,
+        variant: "single"
       }
 
       existing_state = {7, config}
@@ -171,7 +174,8 @@ defmodule Spine.Listener.Worker.WorkerTest do
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock
+        callback: ListenerCallbackMock,
+        variant: "single"
       }
 
       existing_state = {7, config}
