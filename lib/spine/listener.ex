@@ -13,7 +13,7 @@ defmodule Spine.Listener do
   @default_starting_number 1
 
   def init(config) do
-    send(self(), :subscribe_to_event_store)
+    config.notifier.subscribe()
 
     {:ok, config}
   end
@@ -32,13 +32,15 @@ defmodule Spine.Listener do
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.callback.channel()})
   end
 
-  def handle_info(:subscribe_to_event_store, config) do
-    :ok = config.notifier.subscribe()
+  def handle_info({:process, aggregate_id}, config) do
+    process_event(aggregate_id, config)
 
     {:noreply, config}
   end
 
-  def handle_info({:process, aggregate_id}, config) do
+  def handle_info(_msg, state), do: {:noreply, state}
+
+  defp process_event(aggregate_id, config) do
     listener_options = %{
       channel: config.callback.channel(),
       variant: config.callback.variant(aggregate_id),
@@ -55,11 +57,7 @@ defmodule Spine.Listener do
 
     {:ok, pid} = find_or_start_worker(config.listener_supervisor, listener_child_spec)
     send(pid, :process)
-
-    {:noreply, config}
   end
-
-  def handle_info(_msg, state), do: {:noreply, state}
 
   defp find_or_start_worker(worker_supervisor, child_spec) do
     case DynamicSupervisor.start_child(worker_supervisor, child_spec) do
