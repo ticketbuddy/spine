@@ -9,6 +9,7 @@ defmodule Spine.Listener do
     send(self(), :subscribe)
 
     {:ok, {nil, config}}
+    
   end
 
   def start_link(
