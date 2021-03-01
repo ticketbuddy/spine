@@ -4,7 +4,6 @@ defmodule Spine.EventStore.Postgres do
 
   def commit(repo, notifier, events, cursor, opts) do
     events = List.wrap(events)
-    {aggregate_id, _key} = cursor
 
     Commit.commit(events, cursor, opts)
     |> repo.transaction()
@@ -14,7 +13,7 @@ defmodule Spine.EventStore.Postgres do
           cursor: cursor
         })
 
-        notifier.broadcast({:process, aggregate_id})
+        notifier.broadcast(:process)
 
         {:ok, Commit.latest_event_number(results)}
 
