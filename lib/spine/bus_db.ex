@@ -7,5 +7,4 @@ defmodule Spine.BusDb do
   @callback subscriptions() :: %{channel => {pid, cursor}}
   @callback cursor(channel) :: cursor
   @callback completed(channel, cursor) :: :ok
-  @callback event_completed_notifier() :: Module.t()
 end
