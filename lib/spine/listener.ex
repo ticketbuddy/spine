@@ -1,82 +1,100 @@
 defmodule Spine.Listener do
-  @moduledoc """
-  Is started manually, and receives a notification
-  when there is a new event to process.
-
-  Using the config, will dynamically find or start the Listener.Worker
-  GenServer, and set it processing a given channel.
-  """
-
   use GenServer
-  alias __MODULE__
 
   @default_starting_number 1
 
-  def init(config) do
-    send(self(), :subscribe_to_event_store)
+  def init(state) do
+    {_, config} = state
 
-    {:ok, config}
+    send(self(), :subscribe)
+
+    {:ok, {nil, config}}
   end
 
   def start_link(
-        config = %{
-          listener_supervisor: _listener_sup,
-          notifier: _notifier,
-          spine: _event_bus,
-          callback: _callback,
-          channel: _channel
-        }
+        config = %{notifier: _notifier, spine: _event_bus, callback: _callback, channel: _channel}
       ) do
     config = Map.put_new(config, :starting_event_number, @default_starting_number)
-    init_state = config
+    init_state = {config.starting_event_number, config}
 
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
-  def handle_info(:subscribe_to_event_store, config) do
+  def handle_info(:subscribe, {_cursor, config}) do
+    {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
+
     :ok = config.notifier.subscribe()
 
-    {:noreply, config}
+    schedule_work()
+
+    {:noreply, {cursor, config}}
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; a dynamic listener supervisor, spine, notifier, callback and a channel."
+    raise "Listener must be started with; spine, notifier, callback and a channel."
   end
 
-  def handle_info({:process, aggregate_id}, config) do
-    # TODO
-    # if listener per aggregate:
-    # <channel name>-<aggregate id>
-    # if only one listener:
-    # <channel name>-default
+  def handle_info(:process, state) do
+    {cursor, config} = state
 
-    listener_options = %{
-      # channel: "#{config.channel}-#{aggregate_id}"
-      channel: "#{config.channel}-default",
-      starting_event_number: config.starting_event_number,
-      spine: config.spine,
-      callback: config.callback
-    }
+    cursor =
+      case config.spine.next_event(cursor) do
+        {:ok, :no_next_event} ->
+          :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback
+          })
 
-    listener_child_spec = %{
-      id: {Listener.Worker, listener_options.channel},
-      start: {Listener.Worker, :start_link, [listener_options]},
-      restart: :temporary
-    }
+          cursor
 
-    {:ok, pid} = find_or_start_worker(config.listener_supervisor, listener_child_spec)
+        {:ok, event, event_meta = %{event_number: cursor}} ->
+          :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback,
+            event: event
+          })
 
-    send(pid, :process)
+          cursor = handle_event(event, event_meta, config)
 
-    {:noreply, config}
+          schedule_work()
+
+          cursor
+      end
+
+    {:noreply, {cursor, config}}
   end
 
-  def handle_info(msg, state), do: {:noreply, state}
+  def handle_info(_msg, state), do: {:noreply, state}
 
-  defp find_or_start_worker(worker_supervisor, child_spec) do
-    case DynamicSupervisor.start_child(worker_supervisor, child_spec) do
-      {:ok, pid} -> {:ok, pid}
-      {:error, {:already_started, pid}} -> {:ok, pid}
+  def schedule_work do
+    send(self(), :process)
+  end
+
+  defp handle_event(event, event_meta = %{event_number: cursor}, config) do
+    meta = %{
+      channel: config.channel,
+      cursor: cursor,
+      occured_at: event_meta.inserted_at
+    }
+
+    case config.callback.handle_event(event, meta) do
+      :ok ->
+        :telemetry.execute([:spine, :listener, :handle_event, :ok], %{count: 1}, %{
+          callback: config.callback,
+          event: event
+        })
+
+        config.spine.completed(config.channel, cursor)
+        cursor + 1
+
+      other ->
+        :telemetry.execute([:spine, :listener, :handle_event, :error], %{count: 1}, %{
+          error: other,
+          callback: config.callback,
+          event: event
+        })
+
+        cursor
     end
   end
 end
