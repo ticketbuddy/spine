@@ -36,7 +36,7 @@ defmodule Spine.ListenerTest do
     assert {:ok, pid} = Spine.Listener.start_link(listener_config)
     assert is_pid(pid)
     assert {set_cursor, %{starting_event_number: set_cursor}} = :sys.get_state(pid)
-    assert set_cursor = 3
+    assert set_cursor == 3
   end
 
   test "when not all listener params are provided" do

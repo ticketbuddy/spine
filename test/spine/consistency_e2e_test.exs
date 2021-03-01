@@ -23,6 +23,8 @@ defmodule Spine.ConsistencyE2eTest do
     listener_handled_at =
       receive do
         {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
       end
 
     assert :ok == result
@@ -36,12 +38,14 @@ defmodule Spine.ConsistencyE2eTest do
       amount: 4_500
     }
 
-    result = App.handle(wish, strong_consistency: [@channel])
+    result = App.handle(wish, strong_consistency: ["read_model"])
     result_received_at = DateTime.utc_now()
 
     listener_handled_at =
       receive do
         {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
       end
 
     assert :ok == result
@@ -52,12 +56,13 @@ defmodule Spine.ConsistencyE2eTest do
     wish = %App.AddFunds{
       account_id: "account-1",
       reply_pid: self(),
-      amount: 4_500
+      amount: 4_500,
+      sleep_for: 700
     }
 
     result =
       App.handle(wish,
-        strong_consistency: [@channel],
+        strong_consistency: ["read_model"],
         consistency_timeout: 500
       )
 
@@ -66,6 +71,8 @@ defmodule Spine.ConsistencyE2eTest do
     listener_handled_at =
       receive do
         {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
       end
 
     assert {:timeout, event_number} = result

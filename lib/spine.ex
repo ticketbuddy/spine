@@ -81,35 +81,34 @@ defmodule Spine do
       end
 
       defp handle_consistency_guarantee(commited_result, opts) do
-        :ok
-        # case commited_result do
-        #   {:ok, :idempotent} ->
-        #     :ok
-        #
-        #   {:ok, event_number} when is_integer(event_number) ->
-        #     do_handle_consistency_guarantee(event_number, opts)
-        #
-        #   :error ->
-        #     :error
-        # end
+        case commited_result do
+          {:ok, :idempotent} ->
+            :ok
+
+          {:ok, event_number} when is_integer(event_number) ->
+            do_handle_consistency_guarantee(event_number, opts)
+
+          :error ->
+            :error
+        end
       end
 
-      # defp do_handle_consistency_guarantee(event_number, opts) do
-      #   case Keyword.get(opts, :strong_consistency, []) do
-      #     [] ->
-      #       :ok
-      #
-      #     channels ->
-      #       timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
-      #
-      #       Spine.Consistency.wait_for_event(
-      #         event_completed_notifier(),
-      #         channels,
-      #         event_number,
-      #         timeout
-      #       )
-      #   end
-      # end
+      defp do_handle_consistency_guarantee(event_number, opts) do
+        case Keyword.get(opts, :strong_consistency, []) do
+          [] ->
+            :ok
+
+          channels ->
+            timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
+
+            Spine.Consistency.wait_for_event(
+              bus_notifier(),
+              channels,
+              event_number,
+              timeout
+            )
+        end
+      end
     end
   end
 end
