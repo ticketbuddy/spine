@@ -1,4 +1,22 @@
 defmodule Test.Support.Helper do
+  def start_test_application! do
+    ExUnit.Callbacks.start_supervised!({Phoenix.PubSub, name: :commit_notifier},
+      id: :commit_notifier
+    )
+
+    ExUnit.Callbacks.start_supervised!({Phoenix.PubSub, name: :bus_notifier}, id: :bus_notifier)
+
+    ExUnit.Callbacks.start_supervised!(
+      {Spine.Listener,
+       %{
+         notifier: App.CommitNotifier,
+         spine: App,
+         callback: App.ReadModel,
+         channel: "read_model"
+       }}
+    )
+  end
+
   defmacro __using__(repo: repos) do
     quote do
       setup tags do

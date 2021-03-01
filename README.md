@@ -1,21 +1,6 @@
 # Spine
 
-**TODO: Add description**
-
-## Installation
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `spine` to your list of dependencies in `mix.exs`:
-
-```elixir
-def deps do
-  [
-    {:spine, "~> 0.1.0"}
-  ]
-end
-```
-
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/spine](https://hexdocs.pm/spine).
-
+Commit where some good things live:
+`92798881885b2e9dffc1f6c18281c25f5a79cdee`
+and
+`9a1fb0d1db9df34a2756568a6dce9a8b01fef74c`

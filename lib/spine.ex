@@ -75,37 +75,36 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
-      def wait_for_consistency(channels, event_number, timeout \\ @default_consistency_timeout) do
-        do_handle_consistency_guarantee(event_number,
-          strong_consistency: channels,
-          consistency_timeout: timeout
-        )
-      end
-
       defp handle_consistency_guarantee(commited_result, opts) do
-        case commited_result do
-          {:ok, :idempotent} ->
-            :ok
-
-          {:ok, event_number} when is_integer(event_number) ->
-            do_handle_consistency_guarantee(event_number, opts)
-
-          :error ->
-            :error
-        end
+        :ok
+        # case commited_result do
+        #   {:ok, :idempotent} ->
+        #     :ok
+        #
+        #   {:ok, event_number} when is_integer(event_number) ->
+        #     do_handle_consistency_guarantee(event_number, opts)
+        #
+        #   :error ->
+        #     :error
+        # end
       end
 
-      defp do_handle_consistency_guarantee(event_number, opts) do
-        case Keyword.get(opts, :strong_consistency, []) do
-          [] ->
-            :ok
-
-          channels ->
-            timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
-
-            Spine.Consistency.wait_for_event(channels, event_number, timeout)
-        end
-      end
+      # defp do_handle_consistency_guarantee(event_number, opts) do
+      #   case Keyword.get(opts, :strong_consistency, []) do
+      #     [] ->
+      #       :ok
+      #
+      #     channels ->
+      #       timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
+      #
+      #       Spine.Consistency.wait_for_event(
+      #         event_completed_notifier(),
+      #         channels,
+      #         event_number,
+      #         timeout
+      #       )
+      #   end
+      # end
     end
   end
 end
