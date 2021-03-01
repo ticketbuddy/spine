@@ -112,7 +112,7 @@ defmodule Spine.EventStore.Postgres do
     end
   end
 
-  defp mutate_query_for_channel_type(query, by_variant: aggregate_id) do
+  defp mutate_query_for_channel_type(query, by_aggregate: aggregate_id) do
     require Ecto.Query
 
     Ecto.Query.where(query, [e], e.aggregate_id == ^aggregate_id)

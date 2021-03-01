@@ -4,6 +4,8 @@ defmodule Spine.ConsistencyE2eTest do
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
+  @channel "a-channel-to-be-strongly-consistent-with"
+
   defmodule EventCommittedNotifier do
     use Spine.Listener.Notifier.PubSub,
       pubsub: :event_committed_notifier_strong_consistency,
@@ -55,7 +57,7 @@ defmodule Spine.ConsistencyE2eTest do
       @impl true
       def handle_event(%{time: sleep_for, reply_pid: pid}, _meta) do
         :timer.sleep(sleep_for)
-        send(pid, {:strong_consistency_handle_event, DateTime.utc_now()})
+        send(pid, {:consistency_by_aggregate, DateTime.utc_now()})
 
         :ok
       end
@@ -92,7 +94,8 @@ defmodule Spine.ConsistencyE2eTest do
            listener_supervisor: MyStronglyConsistentApp.ListenerDynamicSupervisor,
            notifier: EventCommittedNotifier,
            spine: MyStronglyConsistentApp,
-           callback: MyStronglyConsistentApp.ListenerCallback
+           callback: MyStronglyConsistentApp.ListenerCallback,
+           channel: @channel
          }},
         id: :listener_one
       )
@@ -103,7 +106,8 @@ defmodule Spine.ConsistencyE2eTest do
            listener_supervisor: MyStronglyConsistentApp.ListenerDynamicSupervisor,
            notifier: EventCommittedNotifier,
            spine: MyStronglyConsistentApp,
-           callback: MyStronglyConsistentApp.ListenerByAggregateCallback
+           callback: MyStronglyConsistentApp.ListenerByAggregateCallback,
+           channel: "channel-two"
          }},
         id: :listener_two
       )
@@ -112,7 +116,7 @@ defmodule Spine.ConsistencyE2eTest do
     end
 
     test "eventual consistency, receives result before listener has completed" do
-      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 300, reply_pid: self()}
+      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
 
       result = MyStronglyConsistentApp.handle(wish)
       result_received_at = DateTime.utc_now()
@@ -120,8 +124,6 @@ defmodule Spine.ConsistencyE2eTest do
       listener_completed_at =
         receive do
           {:strong_consistency_handle_event, completed_at} -> completed_at
-        after
-          2_000 -> flunk("Did not receive message")
         end
 
       assert :ok == result
@@ -129,7 +131,7 @@ defmodule Spine.ConsistencyE2eTest do
     end
 
     test "strong consistency, receives result after listener has completed" do
-      wish = %EventCatalog.Sleep{timer: "time-seven", time_ms: 700, reply_pid: self()}
+      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
 
       result =
         MyStronglyConsistentApp.handle(wish,
@@ -141,8 +143,6 @@ defmodule Spine.ConsistencyE2eTest do
       listener_completed_at =
         receive do
           {:strong_consistency_handle_event, completed_at} -> completed_at
-        after
-          2_000 -> flunk("Did not receive message")
         end
 
       assert :ok == result
@@ -163,8 +163,6 @@ defmodule Spine.ConsistencyE2eTest do
       listener_completed_at =
         receive do
           {:strong_consistency_handle_event, completed_at} -> completed_at
-        after
-          2_000 -> flunk("Did not receive message")
         end
 
       assert {:timeout, event_number} = result
