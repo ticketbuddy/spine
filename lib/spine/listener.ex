@@ -15,10 +15,7 @@ defmodule Spine.Listener do
   def init(config) do
     config.notifier.subscribe()
 
-    case config.callback.concurrency() do
-      :by_aggregate -> send(self(), :process_all_aggregates)
-      :single -> send(self(), :process)
-    end
+    send(self(), :_process_all_aggregates)
 
     {:ok, config}
   end
@@ -37,14 +34,8 @@ defmodule Spine.Listener do
     GenServer.start_link(__MODULE__, init_state, name: {:global, config.callback.channel()})
   end
 
-  def handle_info(:process, config) do
-    process_event(config.callback.variant(), config)
-
-    {:noreply, config}
-  end
-
   def handle_info({:process, aggregate_id}, config) do
-    process_event(config.callback.variant(aggregate_id), config)
+    process_event(aggregate_id, config)
 
     {:noreply, config}
   end
@@ -57,22 +48,23 @@ defmodule Spine.Listener do
   efficient way to ensure listeners varying on variants
   are up-to-date. This implementation will like change.
   """
-  def handle_info(:process_all_aggregates, config) do
-    config.spine.all_aggregates(fn aggregates ->
-      Enum.each(aggregates, fn aggregate_id ->
-        process_event(config.callback.variant(aggregate_id), config)
-      end)
-    end)
+  def handle_info(:_process_all_aggregates, config) do
+    config.spine.all_variants(
+      fn variants ->
+        Enum.each(variants, &process_event(&1, config))
+      end,
+      channel: config.callback.channel()
+    )
 
     {:noreply, config}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
 
-  defp process_event(variant, config) do
+  defp process_event(aggregate_id, config) do
     listener_options = %{
       channel: config.callback.channel(),
-      variant: variant,
+      variant: config.callback.variant(aggregate_id),
       starting_event_number: config.starting_event_number,
       spine: config.spine,
       callback: config.callback
