@@ -20,21 +20,28 @@ defmodule SpineTest do
     assert :ok == App.handle(wish)
   end
 
-  # test "handling a wish that requires strong consistency" do
-  #   wish = %EventCatalog.Inc{counter_id: "counter-1"}
-  #
-  #   assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel"])
-  # end
-  #
-  # test "handling a wish that requires strong consistency times out" do
-  #   wish = %EventCatalog.Inc{counter_id: "counter-1"}
-  #
-  #   assert {:timeout, event_number} =
-  #            MyApp.handle(wish, strong_consistency: ["some-channel"], consistency_timeout: 0)
-  #
-  #   assert is_integer(event_number)
-  #   assert :ok == MyApp.wait_for_consistency(["some-channel"], event_number)
-  # end
+  test "handling a wish that requires strong consistency" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 1_000
+    }
+
+    assert :ok = App.handle(wish, strong_consistency: ["read_model"])
+  end
+
+  test "handling a wish that requires strong consistency times out" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 1_000
+    }
+
+    assert {:timeout, event_number} =
+             App.handle(wish, strong_consistency: ["read_model"], consistency_timeout: 0)
+
+    assert is_integer(event_number)
+  end
 
   test "handling a wish, that is not allowed" do
     wish = %App.AddFunds{
