@@ -13,5 +13,4 @@ defmodule Spine.EventStore do
   @callback aggregate_events(aggregate_id) :: events
   @callback event(key) :: event
   @callback next_event(key, channel_type) :: event
-  @callback all_aggregates((() -> List.t())) :: {:ok, :ok}
 end
