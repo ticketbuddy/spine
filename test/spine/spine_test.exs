@@ -70,4 +70,31 @@ defmodule SpineTest do
 
     assert_receive({:handling_event, _handled_at, [%App.FundsAdded{}, _meta]})
   end
+
+  test "when an event is committed to the event store, a message is broadcasted on commit notifier" do
+    App.CommitNotifier.subscribe()
+
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
+
+    App.handle(wish)
+
+    assert_receive(:process)
+  end
+
+  test "when an event is completed by a listener, a message is broadcasted on bus notifier" do
+    App.BusNotifier.subscribe()
+
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
+
+    App.handle(wish)
+    assert_receive({:listener_completed_event, "read_model", 1})
+  end
 end

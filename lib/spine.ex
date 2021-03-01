@@ -3,15 +3,17 @@ defmodule Spine do
   Documentation for Spine.
   """
 
-  defmacro __using__(event_store: event_store, bus: bus) do
+  defmacro __using__(opts) do
     quote do
       require Logger
 
       @count_from 1
       @default_consistency_timeout 5_000
 
-      @event_store unquote(event_store)
-      @bus unquote(bus)
+      @event_store Keyword.fetch!(unquote(opts), :event_store)
+      @bus Keyword.fetch!(unquote(opts), :bus)
+      @commit_notifier Keyword.fetch!(unquote(opts), :commit_notifier)
+      @bus_notifier Keyword.fetch!(unquote(opts), :bus_notifier)
 
       @type events :: any() | List.t()
       @type cursor :: {String.t(), non_neg_integer()}
@@ -44,6 +46,9 @@ defmodule Spine do
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus
       defdelegate completed(channel, cursor), to: @bus
+
+      def commit_notifier, do: @commit_notifier
+      def bus_notifier, do: @bus_notifier
 
       def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)

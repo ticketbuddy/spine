@@ -19,7 +19,11 @@ defmodule App do
     use Spine.BusDb.Postgres, repo: Test.Support.Repo
   end
 
-  use Spine, event_store: EventStore, bus: EventBus
+  use Spine,
+    event_store: EventStore,
+    bus: EventBus,
+    commit_notifier: CommitNotifier,
+    bus_notifier: BusNotifier
 
   import Spine.Wish, only: [defwish: 3]
   import Spine.Event, only: [defevent: 2]

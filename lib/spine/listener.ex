@@ -11,9 +11,7 @@ defmodule Spine.Listener do
     {:ok, {nil, config}}
   end
 
-  def start_link(
-        config = %{notifier: _notifier, spine: _event_bus, callback: _callback, channel: _channel}
-      ) do
+  def start_link(config = %{spine: _spine, callback: _callback, channel: _channel}) do
     config = Map.put_new(config, :starting_event_number, @default_starting_number)
     init_state = {config.starting_event_number, config}
 
@@ -23,7 +21,7 @@ defmodule Spine.Listener do
   def handle_info(:subscribe, {_cursor, config}) do
     {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
 
-    :ok = config.notifier.subscribe()
+    :ok = config.spine.commit_notifier().subscribe()
 
     schedule_work()
 
@@ -31,7 +29,7 @@ defmodule Spine.Listener do
   end
 
   def start_link(_config) do
-    raise "Listener must be started with; spine, notifier, callback and a channel."
+    raise "Listener must be started with; spine, callback and a channel."
   end
 
   def handle_info(:process, state) do
@@ -85,6 +83,9 @@ defmodule Spine.Listener do
         })
 
         config.spine.completed(config.channel, cursor)
+
+        config.spine.bus_notifier().broadcast({:listener_completed_event, config.channel, cursor})
+
         cursor + 1
 
       other ->
