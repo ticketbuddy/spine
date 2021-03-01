@@ -34,7 +34,6 @@ defmodule Spine do
       @callback handle(wish) :: :ok | any()
       @callback handle(wish, opts) :: :ok | any()
       @callback read(aggregate_id, handler) :: any()
-      @callback event_completed_notifier() :: Module.t()
 
       defdelegate commit(events, cursor, opts), to: @event_store
       defdelegate all_events(), to: @event_store
@@ -45,7 +44,6 @@ defmodule Spine do
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus
       defdelegate completed(channel, cursor), to: @bus
-      defdelegate event_completed_notifier(), to: @bus
 
       def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)
@@ -77,6 +75,13 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
+      def wait_for_consistency(channels, event_number, timeout \\ @default_consistency_timeout) do
+        do_handle_consistency_guarantee(event_number,
+          strong_consistency: channels,
+          consistency_timeout: timeout
+        )
+      end
+
       defp handle_consistency_guarantee(commited_result, opts) do
         case commited_result do
           {:ok, :idempotent} ->
@@ -98,12 +103,7 @@ defmodule Spine do
           channels ->
             timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
 
-            Spine.Consistency.wait_for_event(
-              event_completed_notifier(),
-              channels,
-              event_number,
-              timeout
-            )
+            Spine.Consistency.wait_for_event(channels, event_number, timeout)
         end
       end
     end

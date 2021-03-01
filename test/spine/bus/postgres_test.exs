@@ -6,12 +6,12 @@ defmodule Spine.BusDb.PostgresTest do
   @start_listening_from 1
 
   defmodule PostgresTestDb do
-    use Spine.BusDb.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+    use Spine.BusDb.Postgres, repo: Test.Support.Repo
   end
 
   setup do
     ListenerNotifierMock
-    |> stub(:broadcast, fn {:listener_completed_event, _channel, _event_number} -> :ok end)
+    |> stub(:broadcast, fn {:completed, _channel, _event} -> :ok end)
 
     :ok
   end
