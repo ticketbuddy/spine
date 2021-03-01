@@ -6,7 +6,7 @@ defmodule Spine.EventStore do
   @type cursor :: {aggregate_id, key}
   @type event_number :: Integer.t()
   @type opts :: [idempotent_key: String.t()] | []
-  @type channel_type :: :single | :by_variant
+  @type channel_type :: :single | :by_aggregate
 
   @callback commit(events, cursor, opts) :: {:ok, event_number} | {:ok, :idempotent} | :error
   @callback all_events() :: events

@@ -15,58 +15,58 @@ defmodule Spine.Listener.Worker do
           spine: _event_bus,
           callback: _callback,
           channel: _channel,
-          variant: _variant
+          aggregate_id: _aggregate_id
         }
       ) do
     init_state = {config.starting_event_number, config}
 
-    GenServer.start_link(__MODULE__, init_state,
-      name: {:global, "#{config.channel}-#{config.variant}"}
-    )
-  end
-
-  def start_link(_config) do
-    raise "Listener must be started with; variant, spine, callback and a channel."
+    GenServer.start_link(__MODULE__, init_state, name: {:global, config.channel})
   end
 
   def handle_info(:subscribe_to_bus, {_cursor, config}) do
-    {:ok, cursor} =
-      config.spine.subscribe(config.channel, config.variant, config.starting_event_number)
+    {:ok, cursor} = config.spine.subscribe(config.channel, config.starting_event_number)
 
     {:noreply, {cursor, config}}
+  end
+
+  def start_link(_config) do
+    raise "Listener must be started with; aggregate_id, spine, callback and a channel."
   end
 
   def handle_info(:process, state) do
     {cursor, config} = state
 
     next_event_opts =
-      case config.variant do
-        "single" -> []
-        vairant -> [by_variant: vairant]
+      case config.callback.concurrency() do
+        :single -> []
+        :by_aggregate -> [by_aggregate: config.aggregate_id]
       end
 
-    case config.spine.next_event(cursor, next_event_opts) do
-      {:ok, :no_next_event} ->
-        :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
-          cursor: cursor,
-          callback: config.callback
-        })
+    cursor =
+      case config.spine.next_event(cursor, next_event_opts) do
+        {:ok, :no_next_event} ->
+          :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback
+          })
 
-        {:stop, :normal, {cursor, config}}
+          cursor
 
-      {:ok, event, event_meta = %{event_number: cursor}} ->
-        :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
-          cursor: cursor,
-          callback: config.callback,
-          event: event
-        })
+        {:ok, event, event_meta = %{event_number: cursor}} ->
+          :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
+            cursor: cursor,
+            callback: config.callback,
+            event: event
+          })
 
-        cursor = handle_event(event, event_meta, config)
+          cursor = handle_event(event, event_meta, config)
 
-        schedule_work()
+          schedule_work()
 
-        {:noreply, {cursor, config}}
-    end
+          cursor
+      end
+
+    {:noreply, {cursor, config}}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
@@ -89,7 +89,7 @@ defmodule Spine.Listener.Worker do
           event: event
         })
 
-        config.spine.completed(config.channel, config.variant, cursor)
+        config.spine.completed(config.channel, cursor)
         cursor + 1
 
       other ->

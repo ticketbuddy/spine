@@ -19,7 +19,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       spine: nil,
       notifier: nil,
       starting_event_number: 2,
-      variant: "aggregate-one"
+      aggregate_id: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -30,7 +30,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
     start_listening_from_event = 3
 
     BusDbMock
-    |> expect(:subscribe, fn "my-other-channel", "aggregate-one", start_listening_from_event ->
+    |> expect(:subscribe, fn "my-other-channel", start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
 
@@ -40,7 +40,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       spine: MyApp,
       notifier: ListenerNotifierMock,
       starting_event_number: start_listening_from_event,
-      variant: "aggregate-one"
+      aggregate_id: "aggregate-one"
     }
 
     assert {:ok, pid} = Spine.Listener.Worker.start_link(config)
@@ -53,7 +53,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
               spine: MyApp,
               notifier: ListenerNotifierMock,
               starting_event_number: start_listening_from_event,
-              variant: "aggregate-one"
+              aggregate_id: "aggregate-one"
             }} == :sys.get_state(pid)
   end
 
@@ -78,7 +78,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
     start_listening_from_event = 5
 
     BusDbMock
-    |> expect(:subscribe, fn "my-channel", "single", ^start_listening_from_event ->
+    |> expect(:subscribe, fn "my-channel", ^start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
 
@@ -86,8 +86,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       channel: "my-channel",
       spine: MyApp,
       notifier: ListenerNotifierMock,
-      starting_event_number: start_listening_from_event,
-      variant: "single"
+      starting_event_number: start_listening_from_event
     }
 
     existing_state = {start_listening_from_event, config}
@@ -97,7 +96,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
   end
 
   describe "handle_info/1 :process message" do
-    test "stops worker when the event does not exist, and does not send :process message" do
+    test "when the event does not exist, do not send :process message" do
       EventStoreMock
       |> expect(:next_event, fn 7, [] ->
         {:ok, :no_next_event}
@@ -106,13 +105,12 @@ defmodule Spine.Listener.Worker.WorkerTest do
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock,
-        variant: "single"
+        callback: ListenerCallbackMock
       }
 
       existing_state = {7, config}
 
-      assert {:stop, :normal, {7, config}} ==
+      assert {:noreply, {7, config}} ==
                Spine.Listener.Worker.handle_info(:process, existing_state)
 
       refute_receive(:process)
@@ -136,15 +134,14 @@ defmodule Spine.Listener.Worker.WorkerTest do
       end)
 
       BusDbMock
-      |> expect(:completed, fn "my-channel", "single", 9 ->
+      |> expect(:completed, fn "my-channel", 9 ->
         :ok
       end)
 
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock,
-        variant: "single"
+        callback: ListenerCallbackMock
       }
 
       existing_state = {7, config}
@@ -174,8 +171,7 @@ defmodule Spine.Listener.Worker.WorkerTest do
       config = %{
         channel: "my-channel",
         spine: MyApp,
-        callback: ListenerCallbackMock,
-        variant: "single"
+        callback: ListenerCallbackMock
       }
 
       existing_state = {7, config}
