@@ -4,98 +4,104 @@ defmodule SpineTest do
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
-  defmodule MyApp do
-    defmodule MyEventStore do
-      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
-    end
+  setup do
+    Test.Support.Helper.start_test_application!()
 
-    defmodule MyEventBus do
-      use Spine.BusDb.Postgres, repo: Test.Support.Repo
-    end
-
-    use Spine, event_store: MyEventStore, bus: MyEventBus
-
-    defmodule Handler do
-      def execute(_current_state, %{amount: amount}) when amount < 0,
-        do: {:error, :amount_must_be_positive}
-
-      def execute(nil, wish), do: {:ok, wish.amount}
-      def execute(_current_state, wish), do: {:ok, wish.amount}
-
-      def next_state(nil, event), do: event
-      def next_state(current_state, event), do: current_state + event
-    end
-
-    defmodule ListenerCallback do
-      def handle_event(_event, _meta), do: :ok
-    end
+    :ok
   end
 
-  defmodule EventCatalog do
-    import Spine.Wish, only: [defwish: 3]
+  test "handling a wish that is allowed" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-    defwish(Inc, [:counter_id, amount: 1], to: MyApp.Handler)
+    assert :ok == App.handle(wish)
   end
 
-  defmodule BusProgressNotifier do
-    use Spine.Listener.Notifier.PubSub,
-      pubsub: :bus_progress_notifier,
-      topic: "bus_progress_notifier"
+  test "handling a wish that requires strong consistency" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 1_000
+    }
+
+    assert :ok = App.handle(wish, strong_consistency: ["read_model"])
   end
 
-  describe "Integration" do
-    setup do
-      Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+  test "handling a wish that requires strong consistency times out" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 1_000
+    }
 
-      Spine.Consistency.start_link(%{notifier: BusProgressNotifier, spine: MyApp})
-      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier})
+    assert {:timeout, event_number} =
+             App.handle(wish, strong_consistency: ["read_model"], consistency_timeout: 0)
 
-      start_supervised!(
-        {Spine.Listener,
-         %{
-           notifier: BusProgressNotifier,
-           spine: MyApp,
-           callback: MyApp.ListenerCallback,
-           channel: "some-channel"
-         }}
-      )
+    assert is_integer(event_number)
+  end
 
-      :ok
-    end
+  test "handling a wish, that is not allowed" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: -1
+    }
 
-    test "handling a wish that is allowed" do
-      wish = %EventCatalog.Inc{counter_id: "counter-1"}
+    assert {:error, :amount_must_be_positive} == App.handle(wish)
+  end
 
-      assert :ok == MyApp.handle(wish)
-    end
+  test "can read the state of an aggregate back" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-    test "handling a wish that requires strong consistency" do
-      wish = %EventCatalog.Inc{counter_id: "counter-1"}
+    App.handle(wish)
+    App.handle(wish)
 
-      assert :ok = MyApp.handle(wish, strong_consistency: ["some-channel"])
-    end
+    assert 9_000 == App.read("account-1", App.BankAc)
+  end
 
-    test "handling a wish that requires strong consistency times out" do
-      wish = %EventCatalog.Inc{counter_id: "counter-1"}
+  test "events are handled by a listener" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-      assert {:timeout, event_number} =
-               MyApp.handle(wish, strong_consistency: ["some-channel"], consistency_timeout: 0)
+    App.handle(wish)
 
-      assert is_integer(event_number)
-      assert :ok == MyApp.wait_for_consistency(["some-channel"], event_number)
-    end
+    assert_receive({:handling_event, _handled_at, [%App.FundsAdded{}, _meta]})
+  end
 
-    test "handling a wish, that is not allowed" do
-      wish = %EventCatalog.Inc{counter_id: "counter-1", amount: -1}
+  test "when an event is committed to the event store, a message is broadcasted on commit notifier" do
+    App.CommitNotifier.subscribe()
 
-      assert {:error, :amount_must_be_positive} == MyApp.handle(wish)
-    end
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-    test "can read the state of an aggregate back" do
-      MyApp.handle(%EventCatalog.Inc{counter_id: "counter-1", amount: 5})
-      MyApp.handle(%EventCatalog.Inc{counter_id: "counter-1", amount: 15})
+    App.handle(wish)
 
-      assert 20 == MyApp.read("counter-1", MyApp.Handler)
-    end
+    assert_receive(:process)
+  end
+
+  test "when an event is completed by a listener, a message is broadcasted on bus notifier" do
+    App.BusNotifier.subscribe()
+
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
+
+    App.handle(wish)
+    assert_receive({:listener_completed_event, "read_model", 1})
   end
 end

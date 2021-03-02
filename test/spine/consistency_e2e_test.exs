@@ -4,123 +4,79 @@ defmodule Spine.ConsistencyE2eTest do
 
   use Test.Support.Helper, repo: Test.Support.Repo
 
-  @channel "a-channel-to-be-strongly-consistent-with"
+  setup do
+    Test.Support.Helper.start_test_application!()
 
-  defmodule MyStronglyConsistentApp do
-    defmodule MyEventStore do
-      use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
-    end
+    :ok
+  end
 
-    defmodule MyEventBus do
-      use Spine.BusDb.Postgres, repo: Test.Support.Repo
-    end
+  test "eventual consistency, receives result before listener has completed" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-    use Spine, event_store: MyEventStore, bus: MyEventBus
+    result = App.handle(wish)
+    result_received_at = DateTime.utc_now()
 
-    defmodule Handler do
-      def execute(_current_state, wish),
-        do: {:ok, %{time: wish.time_ms, reply_pid: wish.reply_pid}}
-
-      def next_state(_current_state, _event), do: :nothing
-    end
-
-    defmodule ListenerCallback do
-      def handle_event(%{time: sleep_for, reply_pid: pid}, _meta) do
-        :timer.sleep(sleep_for)
-        send(pid, {:strong_consistency_handle_event, DateTime.utc_now()})
-
-        :ok
+    listener_handled_at =
+      receive do
+        {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
       end
 
-      def handle_event(_event, _meta), do: :ok
-    end
+    assert :ok == result
+    assert :lt == DateTime.compare(result_received_at, listener_handled_at)
   end
 
-  defmodule EventCatalog do
-    import Spine.Wish, only: [defwish: 3]
+  test "strong consistency, receives result after listener has completed" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500
+    }
 
-    defwish(Sleep, [:timer, :reply_pid, time_ms: 1], to: MyStronglyConsistentApp.Handler)
+    result = App.handle(wish, strong_consistency: ["read_model"])
+    result_received_at = DateTime.utc_now()
+
+    listener_handled_at =
+      receive do
+        {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
+      end
+
+    assert :ok == result
+    assert :gt == DateTime.compare(result_received_at, listener_handled_at)
   end
 
-  defmodule BusProgressNotifier do
-    use Spine.Listener.Notifier.PubSub,
-      pubsub: :bus_progress_notifier_strong_consistent,
-      topic: "bus_progress_notifier_strong_consistent"
-  end
+  test "strong consistency, when listener handler times out" do
+    wish = %App.AddFunds{
+      account_id: "account-1",
+      reply_pid: self(),
+      amount: 4_500,
+      sleep_for: 700
+    }
 
-  describe "Consistency integration" do
-    setup do
-      Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
-
-      Spine.Consistency.start_link(%{
-        notifier: BusProgressNotifier,
-        spine: MyStronglyConsistentApp
-      })
-
-      start_supervised!({Phoenix.PubSub, name: :bus_progress_notifier_strong_consistent})
-
-      start_supervised!(
-        {Spine.Listener,
-         %{
-           notifier: BusProgressNotifier,
-           spine: MyStronglyConsistentApp,
-           callback: MyStronglyConsistentApp.ListenerCallback,
-           channel: @channel
-         }}
+    result =
+      App.handle(wish,
+        strong_consistency: ["read_model"],
+        consistency_timeout: 500
       )
 
-      :ok
-    end
+    result_received_at = DateTime.utc_now()
 
-    test "eventual consistency, receives result before listener has completed" do
-      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
+    listener_handled_at =
+      receive do
+        {:handling_event, handled_at, [_event, _meta]} -> handled_at
+      after
+        1_000 -> flunk("Message not received.")
+      end
 
-      result = MyStronglyConsistentApp.handle(wish)
-      result_received_at = DateTime.utc_now()
-
-      listener_completed_at =
-        receive do
-          {:strong_consistency_handle_event, completed_at} -> completed_at
-        end
-
-      assert :ok == result
-      assert :lt == DateTime.compare(result_received_at, listener_completed_at)
-    end
-
-    test "strong consistency, receives result after listener has completed" do
-      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
-
-      result = MyStronglyConsistentApp.handle(wish, strong_consistency: [@channel])
-      result_received_at = DateTime.utc_now()
-
-      listener_completed_at =
-        receive do
-          {:strong_consistency_handle_event, completed_at} -> completed_at
-        end
-
-      assert :ok == result
-      assert :gt == DateTime.compare(result_received_at, listener_completed_at)
-    end
-
-    test "strong consistency, when listener handler times out" do
-      wish = %EventCatalog.Sleep{timer: "time-one", time_ms: 700, reply_pid: self()}
-
-      result =
-        MyStronglyConsistentApp.handle(wish,
-          strong_consistency: [@channel],
-          consistency_timeout: 500
-        )
-
-      result_received_at = DateTime.utc_now()
-
-      listener_completed_at =
-        receive do
-          {:strong_consistency_handle_event, completed_at} -> completed_at
-        end
-
-      assert {:timeout, event_number} = result
-      assert is_integer(event_number)
-      assert :lt == DateTime.compare(result_received_at, listener_completed_at)
-    end
+    assert {:timeout, event_number} = result
+    assert is_integer(event_number)
+    assert :lt == DateTime.compare(result_received_at, listener_handled_at)
   end
 end

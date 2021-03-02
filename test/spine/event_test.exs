@@ -3,10 +3,10 @@ defmodule Spine.EventTest do
 
   defmodule MyApp do
     import Spine.Event
-    defevent(SmallEvent, [:id, count: 1])
+    defevent(ShorthandEvent, [:id, count: 1])
   end
 
-  defmodule ExplicitEvent do
+  defmodule ModuleEvent do
     use Spine.Event, attributes: [:id, count: 1]
   end
 
@@ -14,15 +14,17 @@ defmodule Spine.EventTest do
     assert [:id] == Spine.Event.encorced_keys([:id, foo: "bar"])
   end
 
-  describe "ExplicitEvent" do
+  describe "ModuleEvent" do
     test "defines an event" do
-      assert %ExplicitEvent{id: "counter-a", count: 1} == %ExplicitEvent{id: "counter-a"}
+      assert %ModuleEvent{id: "counter-a", count: 1} == %ModuleEvent{id: "counter-a"}
     end
   end
 
-  describe "SmallEvent" do
+  describe "ShorthandEvent" do
     test "defines an event" do
-      assert %MyApp.SmallEvent{id: "counter-a", count: 1} == %MyApp.SmallEvent{id: "counter-a"}
+      assert %MyApp.ShorthandEvent{id: "counter-a", count: 1} == %MyApp.ShorthandEvent{
+               id: "counter-a"
+             }
     end
   end
 end

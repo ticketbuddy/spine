@@ -10,7 +10,7 @@ defmodule Spine.BusDb.PostgresTest do
   end
 
   setup do
-    ListenerNotifierMock
+    BusNotifierMock
     |> stub(:broadcast, fn {:completed, _channel, _event} -> :ok end)
 
     :ok

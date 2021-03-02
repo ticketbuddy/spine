@@ -4,11 +4,11 @@ defmodule Spine.EventStore.PostgresTest do
   use Test.Support.Helper, repo: Test.Support.Repo
 
   defmodule PostgresTestDb do
-    use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: ListenerNotifierMock
+    use Spine.EventStore.Postgres, repo: Test.Support.Repo, notifier: CommitNotifierMock
   end
 
   setup do
-    Mox.stub(ListenerNotifierMock, :broadcast, fn :process -> :ok end)
+    Mox.stub(CommitNotifierMock, :broadcast, fn :process -> :ok end)
 
     :ok
   end
@@ -23,8 +23,7 @@ defmodule Spine.EventStore.PostgresTest do
     end
 
     test "broadcasts message after a commit has been processed" do
-      ListenerNotifierMock
-      |> Mox.expect(:broadcast, fn :process -> :ok end)
+      Mox.expect(CommitNotifierMock, :broadcast, fn :process -> :ok end)
 
       event = %TestApp.Incremented{}
       cursor = {"aggregate-12345", 1}

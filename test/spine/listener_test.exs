@@ -2,88 +2,68 @@ defmodule Spine.ListenerTest do
   use ExUnit.Case
   use Test.Support.Mox
 
-  defmodule MyApp do
-    use Spine, event_store: EventStoreMock, bus: BusDbMock
-  end
+  setup do
+    mocks = Test.Support.Helper.mocks()
 
-  test "can start the listener" do
-    config = %{
-      channel: "my-channel",
-      callback: nil,
-      spine: nil,
-      notifier: nil
+    listener_config = %{
+      channel: mocks.channel,
+      callback: mocks.callback,
+      spine: mocks.spine,
+      starting_event_number: 1
     }
 
-    assert {:ok, pid} = Spine.Listener.start_link(config)
+    %{
+      listener_config: listener_config
+    }
+  end
+
+  test "can start the listener", %{listener_config: listener_config} do
+    assert {:ok, pid} = Spine.Listener.start_link(listener_config)
     assert is_pid(pid)
   end
 
-  test "sets start listening on event number" do
-    start_listening_from_event = 3
+  test "sets start listening on event number", %{listener_config: listener_config} do
+    listener_config = Map.put(listener_config, :starting_event_number, 3)
 
-    BusDbMock
-    |> expect(:subscribe, fn "my-other-channel", start_listening_from_event ->
-      {:ok, start_listening_from_event}
+    expect(BusDbMock, :subscribe, fn "mock-channel", 3 ->
+      {:ok, 3}
     end)
 
-    ListenerNotifierMock
-    |> expect(:subscribe, fn -> :ok end)
+    expect(CommitNotifierMock, :subscribe, fn ->
+      :ok
+    end)
 
-    config = %{
-      channel: "my-other-channel",
-      callback: nil,
-      spine: MyApp,
-      notifier: ListenerNotifierMock,
-      starting_event_number: start_listening_from_event
-    }
-
-    assert {:ok, pid} = Spine.Listener.start_link(config)
+    assert {:ok, pid} = Spine.Listener.start_link(listener_config)
     assert is_pid(pid)
-
-    assert {start_listening_from_event,
-            %{
-              channel: "my-other-channel",
-              callback: nil,
-              spine: MyApp,
-              notifier: ListenerNotifierMock,
-              starting_event_number: start_listening_from_event
-            }} == :sys.get_state(pid)
+    assert {set_cursor, %{starting_event_number: set_cursor}} = :sys.get_state(pid)
+    assert set_cursor == 3
   end
 
-  test "when incorrect listener params are provided" do
-    config = %{}
-
+  test "when not all listener params are provided" do
     assert_raise(RuntimeError, fn ->
-      Spine.Listener.start_link(config)
+      Spine.Listener.start_link(%{})
     end)
   end
 
-  test "init/1 subscribes the listener" do
-    config = %{}
-    state = {1, config}
+  test "init/1 subscribes the listener", %{listener_config: listener_config} do
+    state = {1, listener_config}
 
     Spine.Listener.init(state)
 
     assert_receive(:subscribe)
   end
 
-  test "handle_info/1 catches :subscribe message, and starts process work" do
+  test "handle_info/1 catches :subscribe message, and starts process work", %{
+    listener_config: config
+  } do
     start_listening_from_event = 5
+    config = Map.put(config, :starting_event_number, start_listening_from_event)
 
-    BusDbMock
-    |> expect(:subscribe, fn "my-channel", ^start_listening_from_event ->
+    expect(BusDbMock, :subscribe, fn "mock-channel", ^start_listening_from_event ->
       {:ok, start_listening_from_event}
     end)
 
-    ListenerNotifierMock
-    |> expect(:subscribe, fn -> :ok end)
-
-    config = %{
-      channel: "my-channel",
-      spine: MyApp,
-      notifier: ListenerNotifierMock,
-      starting_event_number: start_listening_from_event
-    }
+    expect(CommitNotifierMock, :subscribe, fn -> :ok end)
 
     existing_state = {start_listening_from_event, config}
 
@@ -94,17 +74,10 @@ defmodule Spine.ListenerTest do
   end
 
   describe "handle_info/1 :process message" do
-    test "when the event does not exist, do not send :process message" do
-      EventStoreMock
-      |> expect(:next_event, fn 7 ->
+    test "when the event does not exist, do not send :process message", %{listener_config: config} do
+      expect(EventStoreMock, :next_event, fn 7 ->
         {:ok, :no_next_event}
       end)
-
-      config = %{
-        channel: "my-channel",
-        spine: MyApp,
-        callback: ListenerCallbackMock
-      }
 
       existing_state = {7, config}
 
@@ -113,11 +86,12 @@ defmodule Spine.ListenerTest do
       refute_receive(:process)
     end
 
-    test "when the next event does exist, and event_handler returns :ok" do
+    test "when the next event does exist, and event_handler returns :ok", %{
+      listener_config: config
+    } do
       event = %{an_event: "yes this is"}
 
-      EventStoreMock
-      |> expect(:next_event, fn 7 ->
+      expect(EventStoreMock, :next_event, fn 7 ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
@@ -125,21 +99,18 @@ defmodule Spine.ListenerTest do
         {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
       end)
 
-      ListenerCallbackMock
-      |> expect(:handle_event, 1, fn ^event, %{channel: "my-channel", cursor: 9} ->
+      expect(ListenerCallbackMock, :handle_event, 1, fn ^event,
+                                                        %{channel: "mock-channel", cursor: 9} ->
         :ok
       end)
 
-      BusDbMock
-      |> expect(:completed, fn "my-channel", 9 ->
+      expect(BusDbMock, :completed, fn "mock-channel", 9 ->
         :ok
       end)
 
-      config = %{
-        channel: "my-channel",
-        spine: MyApp,
-        callback: ListenerCallbackMock
-      }
+      expect(BusNotifierMock, :broadcast, fn {:listener_completed_event, "mock-channel", 9} ->
+        :ok
+      end)
 
       existing_state = {7, config}
 
@@ -148,27 +119,22 @@ defmodule Spine.ListenerTest do
       assert_receive(:process)
     end
 
-    test "when the next event does exist, and event_handler returns an error" do
+    test "when the next event does exist, and event_handler returns an error", %{
+      listener_config: config
+    } do
       event = %{an_event: "yes this is"}
 
-      EventStoreMock
-      |> expect(:next_event, fn 7 ->
+      expect(EventStoreMock, :next_event, fn 7 ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
         {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
       end)
 
-      ListenerCallbackMock
-      |> expect(:handle_event, 1, fn ^event, %{channel: "my-channel", cursor: 9} ->
+      expect(ListenerCallbackMock, :handle_event, 1, fn ^event,
+                                                        %{channel: "mock-channel", cursor: 9} ->
         {:error, :oh_no}
       end)
-
-      config = %{
-        channel: "my-channel",
-        spine: MyApp,
-        callback: ListenerCallbackMock
-      }
 
       existing_state = {7, config}
 

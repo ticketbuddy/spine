@@ -3,15 +3,17 @@ defmodule Spine do
   Documentation for Spine.
   """
 
-  defmacro __using__(event_store: event_store, bus: bus) do
+  defmacro __using__(opts) do
     quote do
       require Logger
 
       @count_from 1
       @default_consistency_timeout 5_000
 
-      @event_store unquote(event_store)
-      @bus unquote(bus)
+      @event_store Keyword.fetch!(unquote(opts), :event_store)
+      @bus Keyword.fetch!(unquote(opts), :bus)
+      @commit_notifier Keyword.fetch!(unquote(opts), :commit_notifier)
+      @bus_notifier Keyword.fetch!(unquote(opts), :bus_notifier)
 
       @type events :: any() | List.t()
       @type cursor :: {String.t(), non_neg_integer()}
@@ -45,6 +47,9 @@ defmodule Spine do
       defdelegate cursor(channel), to: @bus
       defdelegate completed(channel, cursor), to: @bus
 
+      def commit_notifier, do: @commit_notifier
+      def bus_notifier, do: @bus_notifier
+
       def handle(wish, opts \\ []) do
         handler = Spine.Wish.aggregate_handler(wish)
         aggregate_id = Spine.Wish.aggregate_id(wish)
@@ -75,13 +80,6 @@ defmodule Spine do
         Spine.Aggregate.build_state(aggregate_id, events, handler)
       end
 
-      def wait_for_consistency(channels, event_number, timeout \\ @default_consistency_timeout) do
-        do_handle_consistency_guarantee(event_number,
-          strong_consistency: channels,
-          consistency_timeout: timeout
-        )
-      end
-
       defp handle_consistency_guarantee(commited_result, opts) do
         case commited_result do
           {:ok, :idempotent} ->
@@ -103,7 +101,12 @@ defmodule Spine do
           channels ->
             timeout = Keyword.get(opts, :consistency_timeout, @default_consistency_timeout)
 
-            Spine.Consistency.wait_for_event(channels, event_number, timeout)
+            Spine.Consistency.wait_for_event(
+              bus_notifier(),
+              channels,
+              event_number,
+              timeout
+            )
         end
       end
     end
