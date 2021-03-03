@@ -129,8 +129,10 @@ defmodule Spine.EventStore.PostgresTest do
     test "when individual event is not found" do
       assert nil == PostgresTestDb.event(-50)
     end
+  end
 
-    test "fetches next events orderded by aggregate id and event number" do
+  describe "fetches next events" do
+    setup do
       {:ok, event_number} =
         PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-a", 1}, [])
 
@@ -143,29 +145,88 @@ defmodule Spine.EventStore.PostgresTest do
       {:ok, event_number_four} =
         PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-b", 2}, [])
 
+      %{
+        inserted_events: %{
+          event_number: event_number,
+          event_number_two: event_number_two,
+          event_number_three: event_number_three,
+          event_number_four: event_number_four
+        }
+      }
+    end
+
+    test "fetches a single order of events", %{inserted_events: inserted_events} do
+      %{
+        event_number: event_number,
+        event_number_two: event_number_two,
+        event_number_three: event_number_three,
+        event_number_four: event_number_four
+      } = inserted_events
+
       assert events =
                [
-                 {%TestApp.Incremented{},
-                  %{
-                    aggregate_id: "aggregate-a",
-                    event_number: ^event_number
-                  }},
-                 {%TestApp.Incremented{},
-                  %{
-                    aggregate_id: "aggregate-a",
-                    event_number: ^event_number_three
-                  }},
-                 {%TestApp.Incremented{},
-                  %{
-                    aggregate_id: "aggregate-b",
-                    event_number: ^event_number_two
-                  }},
-                 {%TestApp.Incremented{},
-                  %{
-                    aggregate_id: "aggregate-b",
-                    event_number: ^event_number_four
-                  }}
-               ] = PostgresTestDb.next_events(event_number)
+                 [
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-a",
+                      event_number: ^event_number
+                    }},
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-b",
+                      event_number: ^event_number_two
+                    }},
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-a",
+                      event_number: ^event_number_three
+                    }},
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-b",
+                      event_number: ^event_number_four
+                    }}
+                 ]
+               ] = PostgresTestDb.next_events(event_number, :linear)
+    end
+
+    test "chunked by aggregate id, and orderded by event number", %{
+      inserted_events: inserted_events
+    } do
+      %{
+        event_number: event_number,
+        event_number_two: event_number_two,
+        event_number_three: event_number_three,
+        event_number_four: event_number_four
+      } = inserted_events
+
+      assert events =
+               [
+                 [
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-a",
+                      event_number: ^event_number
+                    }},
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-a",
+                      event_number: ^event_number_three
+                    }}
+                 ],
+                 [
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-b",
+                      event_number: ^event_number_two
+                    }},
+                   {%TestApp.Incremented{},
+                    %{
+                      aggregate_id: "aggregate-b",
+                      event_number: ^event_number_four
+                    }}
+                 ]
+               ] = PostgresTestDb.next_events(event_number, :by_aggregate)
     end
   end
 end

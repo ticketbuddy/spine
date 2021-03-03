@@ -112,23 +112,33 @@ defmodule Spine.EventStore.Postgres do
     end
   end
 
-  def next_events(repo, event_number) do
+  def next_events(repo, event_number, query_type) do
     import Ecto.Query
 
-    from(e in Schema.Event,
-      where: e.event_number >= ^event_number,
-      order_by: [asc: e.aggregate_id, asc: e.event_number],
-      limit: 50
-    )
-    |> repo.all()
-    |> Enum.map(fn %Spine.EventStore.Postgres.Schema.Event{
-                     data: data,
-                     event_number: event_number,
-                     inserted_at: inserted_at,
-                     aggregate_id: aggregate_id
-                   } ->
-      {data, %{event_number: event_number, inserted_at: inserted_at, aggregate_id: aggregate_id}}
-    end)
+    order_by_opts =
+      case query_type do
+        :linear -> [asc: :event_number]
+        :by_aggregate -> [asc: :aggregate_id, asc: :event_number]
+      end
+
+    events =
+      from(e in Schema.Event,
+        where: e.event_number >= ^event_number,
+        order_by: ^order_by_opts,
+        limit: 50,
+        select: {e.data, map(e, [:event_number, :inserted_at, :aggregate_id])}
+      )
+      |> repo.all()
+
+    case query_type do
+      :linear ->
+        [events]
+
+      :by_aggregate ->
+        Enum.chunk_by(events, fn {_event, meta} ->
+          meta.aggregate_id
+        end)
+    end
   end
 
   defp format_events(events) do
@@ -169,8 +179,8 @@ defmodule Spine.EventStore.Postgres do
       end
 
       @impl Spine.EventStore
-      def next_events(event_number) do
-        Postgres.next_events(@repo, event_number)
+      def next_events(event_number, query_type) do
+        Postgres.next_events(@repo, event_number, query_type)
       end
     end
   end

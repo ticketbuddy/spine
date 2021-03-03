@@ -7,7 +7,7 @@ defmodule Spine.Listener.Utils do
       |> Enum.map(fn {event, meta} ->
         Task.async(fn ->
           # Enum.map(events_chunk, fn {event, meta} ->
-            exec_handle_event(event, meta, config)
+          exec_handle_event(event, meta, config)
           # end)
         end)
       end)
