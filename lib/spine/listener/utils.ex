@@ -38,11 +38,26 @@ defmodule Spine.Listener.Utils do
     meta.event_number
   end
 
-  defp exec_handle_event(event, event_meta = %{event_number: cursor}, config) do
+  defp exec_handle_event(event, event_meta, config, attempt \\ 1)
+
+  defp exec_handle_event(event, event_meta, config, attempt) when attempt > 5 do
+    :telemetry.execute([:spine, :listener, :handle_event, :max_retry_reached], %{count: 1}, %{
+      msg: "Max retry limit reached in event handler.",
+      callback: config.callback,
+      event: event,
+      event_meta: event_meta,
+      attempt: attempt
+    })
+
+    {:error, :max_listener_callback_limit_reached}
+  end
+
+  defp exec_handle_event(event, event_meta = %{event_number: cursor}, config, attempt) do
     meta = %{
       channel: config.channel,
       cursor: cursor,
-      occured_at: event_meta.inserted_at
+      occured_at: event_meta.inserted_at,
+      attempt: attempt
     }
 
     case config.callback.handle_event(event, meta) do
@@ -63,7 +78,7 @@ defmodule Spine.Listener.Utils do
           event: event
         })
 
-        other
+        exec_handle_event(event, event_meta, config, attempt + 1)
     end
   end
 end
