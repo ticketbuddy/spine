@@ -44,27 +44,21 @@ defmodule Spine.Listener do
         :by_aggregate -> :by_aggregate
       end
 
-    cursor =
-      case config.spine.next_events(cursor, query_type) do
-        {:ok, :no_next_event} ->
-          cursor
+    case config.spine.next_events(cursor, query_type) do
+      {:ok, :no_next_event} ->
+        {:noreply, {cursor, config}}
 
-        events ->
-          next_cursor =
-            case Spine.Listener.Utils.async_execute_events(events, config) do
-              {:ok, last_processed_cursor} ->
-                schedule_work()
+      events ->
+        case Spine.Listener.Utils.async_execute_events(events, config) do
+          {:ok, last_processed_cursor} ->
+            schedule_work()
 
-                last_processed_cursor + 1
+            {:noreply, {last_processed_cursor + 1, config}}
 
-              :error ->
-                cursor
-            end
-
-          next_cursor
-      end
-
-    {:noreply, {cursor, config}}
+          :error ->
+            {:noreply, {cursor, config}}
+        end
+    end
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
