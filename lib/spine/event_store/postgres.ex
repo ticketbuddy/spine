@@ -88,30 +88,6 @@ defmodule Spine.EventStore.Postgres do
   This function will return the next event, when
   given an event_number.
   """
-  def next_event(repo, event_number) do
-    import Ecto.Query
-
-    from(e in Schema.Event,
-      where: e.event_number >= ^event_number,
-      order_by: [asc: e.event_number],
-      limit: 1
-    )
-    |> repo.one()
-    |> case do
-      nil ->
-        {:ok, :no_next_event}
-
-      %Spine.EventStore.Postgres.Schema.Event{
-        data: data,
-        event_number: event_number,
-        inserted_at: inserted_at,
-        aggregate_id: aggregate_id
-      } ->
-        {:ok, data,
-         %{event_number: event_number, inserted_at: inserted_at, aggregate_id: aggregate_id}}
-    end
-  end
-
   def next_events(repo, event_number, query_type) do
     import Ecto.Query
 
@@ -174,11 +150,6 @@ defmodule Spine.EventStore.Postgres do
       @impl Spine.EventStore
       def event(event_number) do
         Postgres.event(@repo, event_number)
-      end
-
-      @impl Spine.EventStore
-      def next_event(event_number) do
-        Postgres.next_event(@repo, event_number)
       end
 
       @impl Spine.EventStore
