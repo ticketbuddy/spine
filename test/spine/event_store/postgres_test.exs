@@ -129,5 +129,43 @@ defmodule Spine.EventStore.PostgresTest do
     test "when individual event is not found" do
       assert nil == PostgresTestDb.event(-50)
     end
+
+    test "fetches next events orderded by aggregate id and event number" do
+      {:ok, event_number} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-a", 1}, [])
+
+      {:ok, event_number_two} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-b", 1}, [])
+
+      {:ok, event_number_three} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-a", 2}, [])
+
+      {:ok, event_number_four} =
+        PostgresTestDb.commit(%TestApp.Incremented{count: 7}, {"aggregate-b", 2}, [])
+
+      assert events =
+               [
+                 {%TestApp.Incremented{},
+                  %{
+                    aggregate_id: "aggregate-a",
+                    event_number: ^event_number
+                  }},
+                 {%TestApp.Incremented{},
+                  %{
+                    aggregate_id: "aggregate-a",
+                    event_number: ^event_number_three
+                  }},
+                 {%TestApp.Incremented{},
+                  %{
+                    aggregate_id: "aggregate-b",
+                    event_number: ^event_number_two
+                  }},
+                 {%TestApp.Incremented{},
+                  %{
+                    aggregate_id: "aggregate-b",
+                    event_number: ^event_number_four
+                  }}
+               ] = PostgresTestDb.next_events(event_number)
+    end
   end
 end
