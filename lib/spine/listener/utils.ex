@@ -7,8 +7,6 @@ defmodule Spine.Listener.Utils do
       |> Enum.map(fn events_chunk ->
         Task.async(fn ->
           Enum.map(events_chunk, fn {event, meta} ->
-            # TODO implement retries here, on an individual basis, rather
-            # than retrying the entire batch?
             exec_handle_event(event, meta, config)
           end)
           |> Enum.all?(&(&1 == :ok))
@@ -38,9 +36,9 @@ defmodule Spine.Listener.Utils do
     meta.event_number
   end
 
-  defp exec_handle_event(event, event_meta, config, attempt \\ 1)
+  defp exec_handle_event(event, event_meta, config, attempt \\ 0)
 
-  defp exec_handle_event(event, event_meta, config, attempt) when attempt > 5 do
+  defp exec_handle_event(event, event_meta, config, attempt) when attempt > 4 do
     :telemetry.execute([:spine, :listener, :handle_event, :max_retry_reached], %{count: 1}, %{
       msg: "Max retry limit reached in event handler.",
       callback: config.callback,
@@ -53,11 +51,13 @@ defmodule Spine.Listener.Utils do
   end
 
   defp exec_handle_event(event, event_meta = %{event_number: cursor}, config, attempt) do
+    retry_back_off(attempt)
+
     meta = %{
       channel: config.channel,
       cursor: cursor,
       occured_at: event_meta.inserted_at,
-      attempt: attempt
+      attempt: attempt + 1
     }
 
     case config.callback.handle_event(event, meta) do
@@ -81,4 +81,8 @@ defmodule Spine.Listener.Utils do
         exec_handle_event(event, event_meta, config, attempt + 1)
     end
   end
+
+  defp retry_back_off(attempt), do: :timer.sleep(attempt * (100 - jitter()))
+
+  defp jitter, do: :rand.uniform(40)
 end
