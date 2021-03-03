@@ -12,8 +12,22 @@ defmodule Test.Support.Helper do
          notifier: App.CommitNotifier,
          spine: App,
          callback: App.ReadModel,
-         channel: "read_model"
-       }}
+         channel: "read_model",
+         concurrency: :linear
+       }},
+      id: :linear_read_model
+    )
+
+    ExUnit.Callbacks.start_supervised!(
+      {Spine.Listener,
+       %{
+         notifier: App.CommitNotifier,
+         spine: App,
+         callback: App.ConcurrentReadModel,
+         channel: "concurrent_read_model",
+         concurrency: :by_aggregate
+       }},
+      id: :concurrent_read_model
     )
   end
 

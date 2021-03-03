@@ -40,6 +40,7 @@ defmodule Spine.Listener do
     query_type =
       case Map.get(config, :concurrency) do
         nil -> :linear
+        :linear -> :linear
         :by_aggregate -> :by_aggregate
       end
 
