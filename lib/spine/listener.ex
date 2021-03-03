@@ -3,6 +3,8 @@ defmodule Spine.Listener do
 
   @default_starting_number 1
 
+  alias Spine.Listener.Utils
+
   def init(state) do
     {_, config} = state
 
@@ -35,28 +37,31 @@ defmodule Spine.Listener do
   def handle_info(:process, state) do
     {cursor, config} = state
 
-    cursor =
-      case config.spine.next_event(cursor) do
-        {:ok, :no_next_event} ->
-          :telemetry.execute([:spine, :listener, :missed_event], %{count: 1}, %{
-            cursor: cursor,
-            callback: config.callback
-          })
+    query_type =
+      case Map.get(config, :concurrency) do
+        nil -> :linear
+        :linear -> :linear
+        :by_aggregate -> :by_aggregate
+      end
 
+    cursor =
+      case config.spine.next_events(cursor, query_type) do
+        {:ok, :no_next_event} ->
           cursor
 
-        {:ok, event, event_meta = %{event_number: cursor}} ->
-          :telemetry.execute([:spine, :listener, :fetched_event], %{count: 1}, %{
-            cursor: cursor,
-            callback: config.callback,
-            event: event
-          })
+        events ->
+          next_cursor =
+            case Spine.Listener.Utils.async_execute_events(events, config) do
+              {:ok, last_processed_cursor} -> last_processed_cursor + 1
+              :error -> cursor
+            end
 
-          cursor = handle_event(event, event_meta, config)
-
+          # TODO implement  retries in utils where event handler is called,
+          # instead of scheduling the next work here if the listener handler
+          # result was a success or a failure.
           schedule_work()
 
-          cursor
+          next_cursor
       end
 
     {:noreply, {cursor, config}}
@@ -66,36 +71,5 @@ defmodule Spine.Listener do
 
   def schedule_work do
     send(self(), :process)
-  end
-
-  defp handle_event(event, event_meta = %{event_number: cursor}, config) do
-    meta = %{
-      channel: config.channel,
-      cursor: cursor,
-      occured_at: event_meta.inserted_at
-    }
-
-    case config.callback.handle_event(event, meta) do
-      :ok ->
-        :telemetry.execute([:spine, :listener, :handle_event, :ok], %{count: 1}, %{
-          callback: config.callback,
-          event: event
-        })
-
-        config.spine.completed(config.channel, cursor)
-
-        config.spine.bus_notifier().broadcast({:listener_completed_event, config.channel, cursor})
-
-        cursor + 1
-
-      other ->
-        :telemetry.execute([:spine, :listener, :handle_event, :error], %{count: 1}, %{
-          error: other,
-          callback: config.callback,
-          event: event
-        })
-
-        cursor
-    end
   end
 end

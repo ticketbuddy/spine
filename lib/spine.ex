@@ -41,7 +41,7 @@ defmodule Spine do
       defdelegate all_events(), to: @event_store
       defdelegate aggregate_events(aggregate_id), to: @event_store
       defdelegate event(event_number), to: @event_store
-      defdelegate next_event(event_number), to: @event_store
+      defdelegate next_events(event_number, query_type), to: @event_store
       defdelegate subscribe(channel, starting_event_number), to: @bus
       defdelegate subscriptions(), to: @bus
       defdelegate cursor(channel), to: @bus
