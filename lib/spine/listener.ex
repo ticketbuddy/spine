@@ -44,27 +44,21 @@ defmodule Spine.Listener do
         :by_aggregate -> :by_aggregate
       end
 
-    cursor =
-      case config.spine.next_events(cursor, query_type) do
-        {:ok, :no_next_event} ->
-          cursor
+    case config.spine.next_events(cursor, query_type) do
+      {:ok, :no_next_event} ->
+        {:noreply, {cursor, config}}
 
-        events ->
-          next_cursor =
-            case Spine.Listener.Utils.async_execute_events(events, config) do
-              {:ok, last_processed_cursor} -> last_processed_cursor + 1
-              :error -> cursor
-            end
+      events ->
+        case Spine.Listener.Utils.async_execute_events(events, config) do
+          {:ok, last_processed_cursor} ->
+            schedule_work()
 
-          # TODO implement  retries in utils where event handler is called,
-          # instead of scheduling the next work here if the listener handler
-          # result was a success or a failure.
-          schedule_work()
+            {:noreply, {last_processed_cursor + 1, config}}
 
-          next_cursor
-      end
-
-    {:noreply, {cursor, config}}
+          :error ->
+            {:noreply, {cursor, config}}
+        end
+    end
   end
 
   def handle_info(_msg, state), do: {:noreply, state}

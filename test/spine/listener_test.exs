@@ -119,7 +119,7 @@ defmodule Spine.ListenerTest do
       assert_receive(:process)
     end
 
-    test "when the next event does exist, and event_handler returns an error", %{
+    test "when the next event does exist, and event_handler returns an error for all retries", %{
       listener_config: config
     } do
       event = %{an_event: "yes this is"}
@@ -135,14 +135,56 @@ defmodule Spine.ListenerTest do
         ]
       end)
 
-      expect(ListenerCallbackMock, :handle_event, 1, fn ^event,
-                                                        %{channel: "mock-channel", cursor: 9} ->
-        {:error, :oh_no}
+      expect(ListenerCallbackMock, :handle_event, 5, fn
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 1} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 2} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 3} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 4} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 5} -> {:error, :oh_no}
       end)
 
       existing_state = {7, config}
 
       assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
+
+      refute_receive(:process)
+    end
+
+    test "when the next event does exist, and event_handler returns :ok after many retries", %{
+      listener_config: config
+    } do
+      event = %{an_event: "yes this is"}
+
+      expect(EventStoreMock, :next_events, fn 7, :linear ->
+        # NOTE: as postgres bigserial can have holes,
+        # it is possible that event 7 and 8 do not exist.
+        # therefore returning 9 is valid
+        [
+          [
+            {event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
+          ]
+        ]
+      end)
+
+      expect(ListenerCallbackMock, :handle_event, 5, fn
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 1} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 2} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 3} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 4} -> {:error, :oh_no}
+        ^event, %{channel: "mock-channel", cursor: 9, attempt: 5} -> :ok
+      end)
+
+      expect(BusNotifierMock, :broadcast, fn {:listener_completed_event, "mock-channel", 9} ->
+        :ok
+      end)
+
+      expect(BusDbMock, :completed, fn "mock-channel", 9 ->
+        :ok
+      end)
+
+      existing_state = {7, config}
+
+      assert {:noreply, {10, config}} == Spine.Listener.handle_info(:process, existing_state)
 
       assert_receive(:process)
     end
