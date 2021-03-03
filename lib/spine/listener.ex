@@ -52,14 +52,14 @@ defmodule Spine.Listener do
         events ->
           next_cursor =
             case Spine.Listener.Utils.async_execute_events(events, config) do
-              {:ok, last_processed_cursor} -> last_processed_cursor + 1
-              :error -> cursor
-            end
+              {:ok, last_processed_cursor} ->
+                schedule_work()
 
-          # TODO implement  retries in utils where event handler is called,
-          # instead of scheduling the next work here if the listener handler
-          # result was a success or a failure.
-          schedule_work()
+                last_processed_cursor + 1
+
+              :error ->
+                cursor
+            end
 
           next_cursor
       end

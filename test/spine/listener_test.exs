@@ -144,7 +144,7 @@ defmodule Spine.ListenerTest do
 
       assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
 
-      assert_receive(:process)
+      refute_receive(:process)
     end
   end
 
