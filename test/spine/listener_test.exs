@@ -75,7 +75,7 @@ defmodule Spine.ListenerTest do
 
   describe "handle_info/1 :process message" do
     test "when the event does not exist, do not send :process message", %{listener_config: config} do
-      expect(EventStoreMock, :next_event, fn 7 ->
+      expect(EventStoreMock, :next_events, fn 7, :linear ->
         {:ok, :no_next_event}
       end)
 
@@ -91,12 +91,12 @@ defmodule Spine.ListenerTest do
     } do
       event = %{an_event: "yes this is"}
 
-      expect(EventStoreMock, :next_event, fn 7 ->
+      expect(EventStoreMock, :next_events, fn 7, :linear ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
 
-        {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
+        [[{event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}]]
       end)
 
       expect(ListenerCallbackMock, :handle_event, 1, fn ^event,
@@ -124,11 +124,15 @@ defmodule Spine.ListenerTest do
     } do
       event = %{an_event: "yes this is"}
 
-      expect(EventStoreMock, :next_event, fn 7 ->
+      expect(EventStoreMock, :next_events, fn 7, :linear ->
         # NOTE: as postgres bigserial can have holes,
         # it is possible that event 7 and 8 do not exist.
         # therefore returning 9 is valid
-        {:ok, event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
+        [
+          [
+            {event, %{event_number: 9, inserted_at: ~U[2020-11-17 19:06:46Z]}}
+          ]
+        ]
       end)
 
       expect(ListenerCallbackMock, :handle_event, 1, fn ^event,
@@ -138,7 +142,7 @@ defmodule Spine.ListenerTest do
 
       existing_state = {7, config}
 
-      assert {:noreply, {9, config}} == Spine.Listener.handle_info(:process, existing_state)
+      assert {:noreply, {7, config}} == Spine.Listener.handle_info(:process, existing_state)
 
       assert_receive(:process)
     end

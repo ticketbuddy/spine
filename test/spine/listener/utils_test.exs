@@ -7,11 +7,13 @@ defmodule Spine.Listener.UtilsTest do
   describe "finds current cursor value from a list of events" do
     test "when many events are given" do
       events = [
-        {@some_event, %{event_number: 2, aggregate_id: "agg-one"}},
-        {@some_event, %{event_number: 6, aggregate_id: "agg-one"}},
-        {@some_event, %{event_number: 1, aggregate_id: "agg-two"}},
-        {@some_event, %{event_number: 3, aggregate_id: "agg-two"}},
-        {@some_event, %{event_number: 5, aggregate_id: "agg-two"}}
+        [
+          {@some_event, %{event_number: 2, aggregate_id: "agg-one"}},
+          {@some_event, %{event_number: 6, aggregate_id: "agg-one"}},
+          {@some_event, %{event_number: 1, aggregate_id: "agg-two"}},
+          {@some_event, %{event_number: 3, aggregate_id: "agg-two"}},
+          {@some_event, %{event_number: 5, aggregate_id: "agg-two"}}
+        ]
       ]
 
       assert 6 == Utils.find_latest_cursor(events)

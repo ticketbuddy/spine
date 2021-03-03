@@ -4,15 +4,18 @@ defmodule Spine.Listener.Utils do
 
     completed? =
       events
-      |> Enum.map(fn {event, meta} ->
+      |> Enum.map(fn events_chunk ->
         Task.async(fn ->
-          # Enum.map(events_chunk, fn {event, meta} ->
-          exec_handle_event(event, meta, config)
-          # end)
+          Enum.map(events_chunk, fn {event, meta} ->
+            # TODO implement retries here, on an individual basis, rather
+            # than retrying the entire batch?
+            exec_handle_event(event, meta, config)
+          end)
+          |> Enum.all?(&(&1 == :ok))
         end)
       end)
       |> Task.await_many()
-      |> Enum.all?(&(&1 == :ok))
+      |> Enum.all?()
 
     case completed? do
       true ->
@@ -24,22 +27,14 @@ defmodule Spine.Listener.Utils do
     end
   end
 
-  # def prepare_events(events, :concurrent) do
-  #
-  # end
-  #
-  # def prepare_events(events, :async) do
-  #   [events]
-  # end
-
   def chunk_by_aggregate(events) do
     Enum.chunk_by(events, fn {_event, meta} ->
       meta.aggregate_id
     end)
   end
 
-  def find_latest_cursor(events) do
-    {_event, meta} = Enum.max_by(events, fn {_event, meta} -> meta.event_number end)
+  def find_latest_cursor(events) when is_list(events) do
+    {_event, meta} = Enum.max_by(List.flatten(events), fn {_event, meta} -> meta.event_number end)
     meta.event_number
   end
 

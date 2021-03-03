@@ -130,11 +130,14 @@ defmodule Spine.EventStore.Postgres do
       )
       |> repo.all()
 
-    case query_type do
-      :linear ->
+    case {events, query_type} do
+      {[], _query_type} ->
+        {:ok, :no_next_event}
+
+      {events, :linear} ->
         [events]
 
-      :by_aggregate ->
+      {events, :by_aggregate} ->
         Enum.chunk_by(events, fn {_event, meta} ->
           meta.aggregate_id
         end)
