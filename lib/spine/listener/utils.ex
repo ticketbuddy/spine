@@ -12,7 +12,7 @@ defmodule Spine.Listener.Utils do
           |> Enum.all?(&(&1 == :ok))
         end)
       end)
-      |> Task.await_many()
+      |> Task.await_many(:infinity)
       |> Enum.all?()
 
     case completed? do
