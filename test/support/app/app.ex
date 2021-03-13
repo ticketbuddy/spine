@@ -29,5 +29,11 @@ defmodule App do
   import Spine.Event, only: [defevent: 2]
 
   defwish(AddFunds, [:account_id, :reply_pid, :amount, sleep_for: 0], to: App.BankAc)
-  defevent(FundsAdded, [:account_id, :reply_pid, :amount, sleep_for: 0])
+  defevent(FundsAdded, [:account_id, :reply_pid, :amount, version: 0, sleep_for: 0])
+end
+
+defimpl Spine.Event.Upcast, for: App.FundsAdded do
+  def upcast(%App.FundsAdded{} = event) do
+    %App.FundsAdded{event | version: 1}
+  end
 end

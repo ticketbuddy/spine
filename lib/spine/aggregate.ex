@@ -6,6 +6,7 @@ defmodule Spine.Aggregate do
     })
 
     Enum.reduce(events, init_state, fn event, agg_state ->
+      event = Spine.Event.Upcast.upcast(event)
       handler.next_state(agg_state, event)
     end)
   end
