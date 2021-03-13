@@ -13,6 +13,12 @@ defmodule App.BankAc do
      }}
   end
 
-  def next_state(nil, event), do: event.amount
-  def next_state(total, event), do: total + event.amount
+  def next_state(total, event) do
+    send(event.reply_pid, {:building_state, [total, event]})
+
+    case total do
+      nil -> event.amount
+      total -> total + event.amount
+    end
+  end
 end
